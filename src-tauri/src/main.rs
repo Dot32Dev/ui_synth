@@ -48,8 +48,8 @@ fn open_midi_connection(
             "midir",
             move |_, message, _| {
                 println!("Message: {:?}", message);
-              handle
-                .emit_all(
+                handle
+                .emit_and_trigger(
                   "midi_message",
                   MidiMessage {
                     message: message.to_vec(),

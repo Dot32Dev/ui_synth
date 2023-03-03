@@ -30,10 +30,12 @@ window.addEventListener("DOMContentLoaded", () => {
 
     piano.appendChild(key);
   }
-});
 
-// listen for event "midi-message"
-listen("midi-message", (event) => {
-  console.log(event);
-  console.log("pogger")
-})
+  console.log("Hello from JS!")
+  // listen for event "midi-message"
+  const unlisten = listen("midi_message", (event) => {
+    console.log(event);
+    console.log("MIDI message received!")
+  })
+
+});
