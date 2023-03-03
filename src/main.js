@@ -1,19 +1,13 @@
 const { invoke } = window.__TAURI__.tauri;
+// Import event module and use listen function
+const { listen } = window.__TAURI__.event;
 
-let greetInputEl;
-let greetMsgEl;
-
-async function greet() {
-  // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-  greetMsgEl.textContent = await invoke("greet", { name: greetInputEl.value });
+async function open_midi_connection() {
+  await invoke("open_midi_connection");
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-  // greetInputEl = document.querySelector("#greet-input");
-  // greetMsgEl = document.querySelector("#greet-msg");
-  // document
-  //   .querySelector("#greet-button")
-  //   .addEventListener("click", () => greet());
+  open_midi_connection();
 
   // Get body element
   const body = document.querySelector("body");
@@ -37,3 +31,9 @@ window.addEventListener("DOMContentLoaded", () => {
     piano.appendChild(key);
   }
 });
+
+// listen for event "midi-message"
+listen("midi-message", (event) => {
+  console.log(event);
+  console.log("pogger")
+})
