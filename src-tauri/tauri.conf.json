@@ -67,7 +67,8 @@
         "resizable": true,
         "title": "musikkboks",
         "width": 800,
-        "titleBarStyle": "Overlay"
+        "titleBarStyle": "Overlay",
+        "maximized": true
       }
     ]
   }
