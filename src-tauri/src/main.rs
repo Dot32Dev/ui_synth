@@ -13,7 +13,6 @@ use midir::{MidiInput, MidiInputConnection};
 mod synth;
 
 use std::sync::{Arc, Mutex};
-use tauri::State;
 use tauri::{Manager, Window, Wry};
 use serde::{Serialize, Deserialize};
 
@@ -40,7 +39,7 @@ fn open_midi_connection(
   let handle = Arc::new(window).clone();
   let midi_in = MidiInput::new("Musikkboks");
   match midi_in {
-    Ok(mut midi_in) => {
+    Ok(midi_in) => {
       let midi_in_ports = midi_in.ports();
       let port = midi_in_ports.get(0);
       match port {
@@ -89,31 +88,6 @@ fn main() {
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     let sink = Sink::try_new(&stream_handle).unwrap();
 
-    // Create a new midi input
-    // let midi_in = MidiInput::new("midir reading input").unwrap();
-
-    // // Get an input port (Automatically choosing the first one) 
-    // // (It will panic if no midi device is connected)
-    // let in_port = &midi_in.ports()[0];
-
-    // // _conn_in needs to be a named parameter, because it needs to be kept alive until the end of the scope
-    // let _conn_in = midi_in.connect(in_port, "midir-read-input", move |_stamp, message, _| {
-    //     // Message is in the format of [event, key, pressure]
-    //     let hz = 440.0 * 2.0_f32.powf((message[1] as f32 - 69.0) / 12.0);
-    //     let pressure = message[2] as f32 / 127.0;
-
-    //     if message[0] == 144 { // 144 is the event for note on
-    //         sink.stop();
-    //         sink.append(synth::Synth::square_wave(hz).amplify(pressure));
-    //         println!("hz: {}", hz);
-    //         // stream_handle.play_raw(synth::Synth::square_wave(hz).amplify(0.1)).unwrap();
-    //     }
-    //     if message[0] == 128 { // 128 is the event for note off
-    //         sink.stop();
-    //         println!("Stop");
-    //     }
-    // }, ()).unwrap();
-
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![open_midi_connection])
         .manage(MidiState::default())
@@ -124,23 +98,11 @@ fn main() {
             // sink.append(synth::Synth::square_wave(220.0).amplify(0.1));
 
             let _id = app.listen_global("midi_message", move |event| {
-                // let sink = &app.state::<SinkState>().sink;
-
-                // let sink = event.window().state::<SinkState>().sink;
-
-                // let sink = event.state::<SinkState>().sink;
-
                 let sink = &handle.state::<SinkState>().sink;
 
-                println!("Received midi message: {:?}", event.payload().unwrap());
-
                 // Deserialize the payload
-                // let message: Vec<u8> = event.payload().unwrap().into();
                 let message = serde_json::from_str::<MidiMessage>(event.payload().unwrap()).unwrap();
                 let message = message.message;
-                
-
-                println!("Message: {:?}", message);
 
                 let hz = 440.0 * 2.0_f32.powf((message[1] as f32 - 69.0) / 12.0);
                 let pressure = message[2] as f32 / 127.0;
