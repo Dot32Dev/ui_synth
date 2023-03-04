@@ -64,3 +64,11 @@ body {
   border-bottom-left-radius: 2px;
   border-bottom-right-radius: 2px;
 }
+
+.pressed {
+  background-color: hsl(0, 0%, 76%);
+}
+
+.pressed::after {
+  background-color: hsl(0, 0%, 29%);
+}

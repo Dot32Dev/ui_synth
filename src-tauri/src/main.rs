@@ -18,8 +18,12 @@ use tauri::{Manager, Window, Wry};
 use serde::Serialize;
 
 #[derive(Default)]
-pub struct MidiState {
+struct MidiState {
   pub input: Mutex<Option<MidiInputConnection<()>>>,
+}
+
+struct SinkState {
+  sink: Sink,
 }
 
 #[derive(Clone, Serialize)]
@@ -86,7 +90,7 @@ fn main() {
     let sink = Sink::try_new(&stream_handle).unwrap();
 
     // Create a new midi input
-    let midi_in = MidiInput::new("midir reading input").unwrap();
+    // let midi_in = MidiInput::new("midir reading input").unwrap();
 
     // // Get an input port (Automatically choosing the first one) 
     // // (It will panic if no midi device is connected)
@@ -110,12 +114,37 @@ fn main() {
     //     }
     // }, ()).unwrap();
 
+    // sink.append(synth::Synth::square_wave(220.0).amplify(0.1));
+
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![open_midi_connection])
         .manage(MidiState::default())
+        .manage(SinkState { sink })
         .setup(|app| {
-            let _id = app.listen_global("midi_message", |event| {
-                println!("got midi-message with payload {:?}", event.payload());
+            let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+            let sink = Sink::try_new(&stream_handle).unwrap();
+
+            let _id = app.listen_global("midi_message", move |event| {
+                // let sink = &app.state::<SinkState>().sink;
+
+                println!("Received midi message: {:?}", event.payload());
+
+                // Deserialize the payload
+                let message: Vec<u8> = event.payload().unwrap().into();
+
+                let hz = 440.0 * 2.0_f32.powf((message[1] as f32 - 69.0) / 12.0);
+                let pressure = message[2] as f32 / 127.0;
+
+                if message[0] == 144 { // 144 is the event for note on
+                    sink.stop();
+                    sink.append(synth::Synth::square_wave(hz).amplify(pressure));
+                    println!("hz: {}", hz);
+                    // stream_handle.play_raw(synth::Synth::square_wave(hz).amplify(0.1)).unwrap();
+                }
+                if message[0] == 128 { // 128 is the event for note off
+                    sink.stop();
+                    println!("Stop");
+                }
             });
             Ok(())
         })

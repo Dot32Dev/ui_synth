@@ -20,6 +20,8 @@ window.addEventListener("DOMContentLoaded", () => {
   for (let i = 36; i < 84; i++) {
     const key = document.createElement("div");
     key.classList.add("key");
+    key.classList.add(`k${i}`);
+    // key.innerHTML = i;
 
     // Detect whether the key is black or white
     if (i % 12 == 1 || i % 12 == 3 || i % 12 == 6 || i % 12 == 8 || i % 12 == 10) {
@@ -35,7 +37,14 @@ window.addEventListener("DOMContentLoaded", () => {
   // listen for event "midi-message"
   const unlisten = listen("midi_message", (event) => {
     console.log(event);
-    console.log("MIDI message received!")
+    // console.log("MIDI message received!")
+    console.log(event.payload.message[1]);
+    const key = document.querySelector(`.k${event.payload.message[1]}`);
+    if (event.payload.message[0] == 144) {
+      key.classList.add("pressed");
+    } else {
+      key.classList.remove("pressed");
+    }
   })
 
 });
