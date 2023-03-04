@@ -121,11 +121,15 @@ fn main() {
         .manage(MidiState::default())
         .manage(SinkState { sink })
         .setup(|app| {
-            let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-            let sink = Sink::try_new(&stream_handle).unwrap();
-
+            let handle = app.handle();
             let _id = app.listen_global("midi_message", move |event| {
                 // let sink = &app.state::<SinkState>().sink;
+
+                // let sink = event.window().state::<SinkState>().sink;
+
+                // let sink = event.state::<SinkState>().sink;
+
+                let sink = &handle.state::<SinkState>().sink;
 
                 println!("Received midi message: {:?}", event.payload());
 
