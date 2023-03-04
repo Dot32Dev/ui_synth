@@ -15,7 +15,7 @@ mod synth;
 use std::sync::{Arc, Mutex};
 use tauri::State;
 use tauri::{Manager, Window, Wry};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 #[derive(Default)]
 struct MidiState {
@@ -26,7 +26,7 @@ struct SinkState {
   sink: Sink,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct MidiMessage {
   message: Vec<u8>,
 }
@@ -114,14 +114,15 @@ fn main() {
     //     }
     // }, ()).unwrap();
 
-    // sink.append(synth::Synth::square_wave(220.0).amplify(0.1));
-
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![open_midi_connection])
         .manage(MidiState::default())
         .manage(SinkState { sink })
         .setup(|app| {
             let handle = app.handle();
+            // let sink = &handle.state::<SinkState>().sink;
+            // sink.append(synth::Synth::square_wave(220.0).amplify(0.1));
+
             let _id = app.listen_global("midi_message", move |event| {
                 // let sink = &app.state::<SinkState>().sink;
 
@@ -131,10 +132,15 @@ fn main() {
 
                 let sink = &handle.state::<SinkState>().sink;
 
-                println!("Received midi message: {:?}", event.payload());
+                println!("Received midi message: {:?}", event.payload().unwrap());
 
                 // Deserialize the payload
-                let message: Vec<u8> = event.payload().unwrap().into();
+                // let message: Vec<u8> = event.payload().unwrap().into();
+                let message = serde_json::from_str::<MidiMessage>(event.payload().unwrap()).unwrap();
+                let message = message.message;
+                
+
+                println!("Message: {:?}", message);
 
                 let hz = 440.0 * 2.0_f32.powf((message[1] as f32 - 69.0) / 12.0);
                 let pressure = message[2] as f32 / 127.0;
