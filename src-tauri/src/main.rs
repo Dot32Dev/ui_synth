@@ -109,7 +109,7 @@ fn main() {
 
                 if message[0] == 144 { // 144 is the event for note on
                     sink.stop();
-                    sink.append(synth::Synth::square_wave(hz).amplify(pressure));
+                    sink.append(synth::Synth::sawtooth_wave(hz).amplify(pressure));
                     println!("hz: {}", hz);
                     // stream_handle.play_raw(synth::Synth::square_wave(hz).amplify(0.1)).unwrap();
                 }
