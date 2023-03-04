@@ -30,12 +30,20 @@ window.addEventListener("DOMContentLoaded", () => {
       key.classList.add("white");
     }
 
-    // // Add mousedown event listener to the key
-    // key.addEventListener("mousedown", () => {
-    //   emit('midi_message', {
-    //     theMessage: '[144, ' + i + ', 100]',
-    //   })
-    // });
+    // Add mousedown event listener to the key
+    key.addEventListener("mousedown", () => {
+      console.log("MIDI message sent!")
+      emit('midi_message', {
+        message: [144, i, 100],
+      })
+    });
+    // Add mouseup event listener to the key
+    key.addEventListener("mouseup", () => {
+      console.log("MIDI message sent!")
+      emit('midi_message', {
+        message: [128, i, 100],
+      })
+    });
 
     piano.appendChild(key);
   }
