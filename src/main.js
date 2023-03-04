@@ -1,6 +1,6 @@
 const { invoke } = window.__TAURI__.tauri;
 // Import event module and use listen function
-const { listen } = window.__TAURI__.event;
+const { emit, listen } = window.__TAURI__.event;
 
 async function open_midi_connection() {
   await invoke("open_midi_connection");
@@ -17,7 +17,7 @@ window.addEventListener("DOMContentLoaded", () => {
   piano.classList.add("piano");
   body.appendChild(piano);
   // Spawn keys inside the piano
-  for (let i = 36; i < 84; i++) {
+  for (let i = 36; i < 85; i++) {
     const key = document.createElement("div");
     key.classList.add("key");
     key.classList.add(`k${i}`);
@@ -29,6 +29,13 @@ window.addEventListener("DOMContentLoaded", () => {
     } else {
       key.classList.add("white");
     }
+
+    // // Add mousedown event listener to the key
+    // key.addEventListener("mousedown", () => {
+    //   emit('midi_message', {
+    //     theMessage: '[144, ' + i + ', 100]',
+    //   })
+    // });
 
     piano.appendChild(key);
   }
