@@ -28,7 +28,7 @@ struct SinkState {
 
 struct Sinks {
     stream_handle: rodio::OutputStreamHandle,
-    sinks: Mutex<HashMap<String, Sink>>,
+    sinks: Mutex<HashMap<u8, Sink>>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -126,13 +126,13 @@ fn main() {
                     let sink = Sink::try_new(&stream_handle).unwrap();
                     sink.append(synth::Synth::sawtooth_wave(hz).amplify(pressure));
                     sink.play();
-                    sinks.sinks.lock().unwrap().insert(message[1].to_string(), sink);
+                    sinks.sinks.lock().unwrap().insert(message[1], sink);
                 }
                 if message[0] == 128 { // 128 is the event for note off
                     // sink.stop();
                     // println!("Stop note {}", message[1]);
 
-                    match sinks.sinks.lock().unwrap().remove(&message[1].to_string()) {
+                    match sinks.sinks.lock().unwrap().remove(&message[1]) {
                         Some(sink) => {
                             sink.stop();
                         }
