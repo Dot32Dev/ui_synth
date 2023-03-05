@@ -132,8 +132,14 @@ fn main() {
                     // sink.stop();
                     // println!("Stop note {}", message[1]);
 
-                    let sink = sinks.sinks.lock().unwrap().remove(&message[1].to_string()).unwrap();
-                    sink.stop();
+                    match sinks.sinks.lock().unwrap().remove(&message[1].to_string()) {
+                        Some(sink) => {
+                            sink.stop();
+                        }
+                        None => {
+                            println!("No sink found for note {}", message[1]);
+                        }
+                    }
                 }
             });
             Ok(())
