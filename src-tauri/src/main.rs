@@ -13,6 +13,7 @@ use midir::{MidiInput, MidiInputConnection};
 mod synth;
 
 use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
 use tauri::{Manager, Window, Wry};
 use serde::{Serialize, Deserialize};
 
@@ -23,6 +24,11 @@ struct MidiState {
 
 struct SinkState {
   sink: Sink,
+}
+
+struct Sinks {
+    stream_handle: rodio::OutputStreamHandle,
+    sinks: Mutex<HashMap<String, Sink>>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -92,6 +98,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![open_midi_connection])
         .manage(MidiState::default())
         .manage(SinkState { sink })
+        .manage(Sinks { sinks: HashMap::new().into(), stream_handle })
         .setup(|app| {
             let handle = app.handle();
             // let sink = &handle.state::<SinkState>().sink;
@@ -99,6 +106,9 @@ fn main() {
 
             let _id = app.listen_global("midi_message", move |event| {
                 let sink = &handle.state::<SinkState>().sink;
+
+                let sinks = &handle.state::<Sinks>();
+                let stream_handle = &sinks.stream_handle;
 
                 // Deserialize the payload
                 let message = serde_json::from_str::<MidiMessage>(event.payload().unwrap()).unwrap();
@@ -108,14 +118,22 @@ fn main() {
                 let pressure = message[2] as f32 / 127.0;
 
                 if message[0] == 144 { // 144 is the event for note on
-                    sink.stop();
-                    sink.append(synth::Synth::sawtooth_wave(hz).amplify(pressure));
-                    println!("hz: {}", hz);
+                    // sink.stop();
+                    // sink.append(synth::Synth::sawtooth_wave(hz).amplify(pressure));
+                    // println!("hz: {}", hz);
                     // stream_handle.play_raw(synth::Synth::square_wave(hz).amplify(0.1)).unwrap();
+
+                    let sink = Sink::try_new(&stream_handle).unwrap();
+                    sink.append(synth::Synth::sawtooth_wave(hz).amplify(pressure));
+                    sink.play();
+                    sinks.sinks.lock().unwrap().insert(message[1].to_string(), sink);
                 }
                 if message[0] == 128 { // 128 is the event for note off
+                    // sink.stop();
+                    // println!("Stop note {}", message[1]);
+
+                    let sink = sinks.sinks.lock().unwrap().remove(&message[1].to_string()).unwrap();
                     sink.stop();
-                    println!("Stop");
                 }
             });
             Ok(())
