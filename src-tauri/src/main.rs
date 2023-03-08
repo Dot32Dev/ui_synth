@@ -10,7 +10,9 @@ use rodio::Sink;
 // use midir::MidiInput;
 use midir::{MidiInput, MidiInputConnection};
 // Import synth module
-mod synth;
+// mod synth;
+mod oscillator;
+use oscillator::Oscillator;
 
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
@@ -124,7 +126,7 @@ fn main() {
                     // stream_handle.play_raw(synth::Synth::square_wave(hz).amplify(0.1)).unwrap();
 
                     let sink = Sink::try_new(&stream_handle).unwrap();
-                    sink.append(synth::Synth::sawtooth_wave(hz).amplify(pressure));
+                    sink.append(Oscillator::sawtooth_wave(hz).amplify(pressure));
                     sink.play();
                     sinks.sinks.lock().unwrap().insert(message[1], sink);
                 }
