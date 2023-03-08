@@ -24,10 +24,6 @@ struct MidiState {
   pub input: Mutex<Option<MidiInputConnection<()>>>,
 }
 
-struct SinkState {
-  sink: Sink,
-}
-
 struct Sinks {
     stream_handle: rodio::OutputStreamHandle,
     sinks: Mutex<HashMap<u8, Sink>>,
@@ -94,12 +90,11 @@ fn open_midi_connection(
 fn main() {
     // Get an output stream handle to the default physical sound device
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-    let sink = Sink::try_new(&stream_handle).unwrap();
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![open_midi_connection])
         .manage(MidiState::default())
-        .manage(SinkState { sink })
+        // .manage(SinkState { sink })
         .manage(Sinks { sinks: HashMap::new().into(), stream_handle })
         .setup(|app| {
             let handle = app.handle();
@@ -107,7 +102,6 @@ fn main() {
             // sink.append(synth::Synth::square_wave(220.0).amplify(0.1));
 
             let _id = app.listen_global("midi_message", move |event| {
-                let sink = &handle.state::<SinkState>().sink;
 
                 let sinks = &handle.state::<Sinks>();
                 let stream_handle = &sinks.stream_handle;
