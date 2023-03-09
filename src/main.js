@@ -6,8 +6,13 @@ async function open_midi_connection() {
   await invoke("open_midi_connection");
 }
 
+async function update_synth() {  
+  await invoke("update_synth");
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   open_midi_connection();
+  update_synth();
 
   // Get body element
   const body = document.querySelector("body");

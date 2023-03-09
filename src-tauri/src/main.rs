@@ -10,8 +10,10 @@ use rodio::Sink;
 // use midir::MidiInput;
 use midir::{MidiInput, MidiInputConnection};
 // Import synth module
-// mod synth;
+mod synth;
 mod oscillator;
+
+use synth::Synth;
 use oscillator::Oscillator;
 
 use std::sync::{Arc, Mutex};
@@ -24,9 +26,8 @@ struct MidiState {
   pub input: Mutex<Option<MidiInputConnection<()>>>,
 }
 
-struct Sinks {
-    stream_handle: rodio::OutputStreamHandle,
-    sinks: Mutex<HashMap<u8, Sink>>,
+struct SynthState {
+    synth: Arc<Mutex<Synth>>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -87,15 +88,30 @@ fn open_midi_connection(
   }
 }
 
+#[tauri::command(async)]
+fn update_synth(
+    synth_state: tauri::State<'_, SynthState>,
+) {
+    loop {
+        let synth_state = &synth_state.synth;
+        let mut synth = synth_state.lock().unwrap();
+        synth.update();
+    }
+}
+
 fn main() {
     // Get an output stream handle to the default physical sound device
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
 
+    let synth =  Arc::new(Mutex::new(Synth::new(stream_handle)));
+
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![open_midi_connection])
+        .invoke_handler(tauri::generate_handler![open_midi_connection, update_synth])
+        // .invoke_handler(tauri::generate_handler![update_synth])
         .manage(MidiState::default())
         // .manage(SinkState { sink })
-        .manage(Sinks { sinks: HashMap::new().into(), stream_handle })
+        .manage(SynthState { synth })
+        // .manage(Sinks { sinks: HashMap::new().into(), stream_handle })
         .setup(|app| {
             let handle = app.handle();
             // let sink = &handle.state::<SinkState>().sink;
@@ -103,8 +119,12 @@ fn main() {
 
             let _id = app.listen_global("midi_message", move |event| {
 
-                let sinks = &handle.state::<Sinks>();
-                let stream_handle = &sinks.stream_handle;
+                // let sinks = &handle.state::<Sinks>();
+                // let stream_handle = &sinks.stream_handle;
+
+                // let mut synth = &handle.state::<SynthState>().synth;
+                let synth_state = &handle.state::<SynthState>().synth;
+                let mut synth = synth_state.lock().unwrap();
 
                 // Deserialize the payload
                 let message = serde_json::from_str::<MidiMessage>(event.payload().unwrap()).unwrap();
@@ -119,23 +139,28 @@ fn main() {
                     // println!("hz: {}", hz);
                     // stream_handle.play_raw(synth::Synth::square_wave(hz).amplify(0.1)).unwrap();
 
-                    let sink = Sink::try_new(&stream_handle).unwrap();
-                    sink.append(Oscillator::sawtooth_wave(hz).amplify(pressure));
-                    sink.play();
-                    sinks.sinks.lock().unwrap().insert(message[1], sink);
+                    // let sink = Sink::try_new(&stream_handle).unwrap();
+                    // sink.append(Oscillator::sawtooth_wave(hz).amplify(pressure));
+                    // sink.play();
+                    // sinks.sinks.lock().unwrap().insert(message[1], sink);
+
+                    let audio_source = Oscillator::sawtooth_wave(hz).amplify(pressure);
+                    synth.play_source(Box::new(audio_source), message[1])
                 }
                 if message[0] == 128 { // 128 is the event for note off
                     // sink.stop();
                     // println!("Stop note {}", message[1]);
 
-                    match sinks.sinks.lock().unwrap().remove(&message[1]) {
-                        Some(sink) => {
-                            sink.stop();
-                        }
-                        None => {
-                            println!("No sink found for note {}", message[1]);
-                        }
-                    }
+                    // match sinks.sinks.lock().unwrap().remove(&message[1]) {
+                    //     Some(sink) => {
+                    //         sink.stop();
+                    //     }
+                    //     None => {
+                    //         println!("No sink found for note {}", message[1]);
+                    //     }
+                    // }
+
+                    synth.release_source(message[1])
                 }
             });
             Ok(())
