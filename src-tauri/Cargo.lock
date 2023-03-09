@@ -1607,18 +1607,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "musikkboks"
-version = "0.0.0"
-dependencies = [
- "midir",
- "rodio",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
-]
-
-[[package]]
 name = "ndk"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3199,6 +3187,18 @@ name = "ucd-trie"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e79c4d996edb816c91e4308506774452e55e95c3c9de07b6729e17e15a5ef81"
+
+[[package]]
+name = "ui_synth"
+version = "0.0.0"
+dependencies = [
+ "midir",
+ "rodio",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+]
 
 [[package]]
 name = "unicode-bidi"

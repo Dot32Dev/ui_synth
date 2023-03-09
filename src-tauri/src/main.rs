@@ -39,7 +39,7 @@ fn open_midi_connection(
   window: Window<Wry>,
 ) {
   let handle = Arc::new(window).clone();
-  let midi_in = MidiInput::new("Musikkboks");
+  let midi_in = MidiInput::new("ui_synth");
   match midi_in {
     Ok(midi_in) => {
       let midi_in_ports = midi_in.ports();

@@ -7,7 +7,7 @@
     "withGlobalTauri": true
   },
   "package": {
-    "productName": "musikkboks",
+    "productName": "ui synth",
     "version": "0.0.0"
   },
   "tauri": {
@@ -65,7 +65,7 @@
         "fullscreen": false,
         "height": 600,
         "resizable": true,
-        "title": "musikkboks",
+        "title": "ui synth",
         "width": 800,
         "titleBarStyle": "Overlay",
         "maximized": true
