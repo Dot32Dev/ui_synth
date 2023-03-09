@@ -82,14 +82,23 @@ impl Synth {
 
 			let volume = if elapsed < envelope.attack {
 				// Attack
-				elapsed / envelope.attack
+				// linear
+				// elapsed / envelope.attack
+				// exponential
+				(elapsed / envelope.attack).powf(2.0)
 			} else if elapsed < envelope.attack + envelope.decay {
 				// Decay
-				1.0 - (elapsed - envelope.attack) / envelope.decay * (1.0 - envelope.sustain)
+				// linear
+				// 1.0 - (elapsed - envelope.attack) / envelope.decay * (1.0 - envelope.sustain)
+				// exponential
+				1.0 - (elapsed - envelope.attack) / envelope.decay * (1.0 - envelope.sustain).powf(2.0)
 			} else if envelope_state.is_releasing {
 				// Release
 				let elapsed_since_released = now.duration_since(envelope_state.time_released.unwrap()).as_secs_f32();
-				envelope.sustain - elapsed_since_released / envelope.release * envelope.sustain
+				// linear
+				// envelope.sustain - elapsed_since_released / envelope.release * envelope.sustain
+				// exponential
+				envelope.sustain * (1.0 - elapsed_since_released / envelope.release).powf(2.0)
 			} else {
 				// Sustain
 				envelope.sustain
