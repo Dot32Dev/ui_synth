@@ -6,7 +6,6 @@
 
 use rodio::OutputStream;
 use rodio::source::Source;
-use rodio::Sink;
 // use midir::MidiInput;
 use midir::{MidiInput, MidiInputConnection};
 // Import synth module
@@ -17,7 +16,6 @@ use synth::Synth;
 use oscillator::Oscillator;
 
 use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
 use tauri::{Manager, Window, Wry};
 use serde::{Serialize, Deserialize};
 
@@ -39,7 +37,6 @@ struct MidiMessage {
 fn open_midi_connection(
   midi_state: tauri::State<'_, MidiState>,
   window: Window<Wry>,
-//   input_idx: usize,
 ) {
   let handle = Arc::new(window).clone();
   let midi_in = MidiInput::new("Musikkboks");
@@ -107,22 +104,12 @@ fn main() {
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![open_midi_connection, update_synth])
-        // .invoke_handler(tauri::generate_handler![update_synth])
         .manage(MidiState::default())
-        // .manage(SinkState { sink })
         .manage(SynthState { synth })
-        // .manage(Sinks { sinks: HashMap::new().into(), stream_handle })
         .setup(|app| {
             let handle = app.handle();
-            // let sink = &handle.state::<SinkState>().sink;
-            // sink.append(synth::Synth::square_wave(220.0).amplify(0.1));
-
             let _id = app.listen_global("midi_message", move |event| {
-
-                // let sinks = &handle.state::<Sinks>();
-                // let stream_handle = &sinks.stream_handle;
-
-                // let mut synth = &handle.state::<SynthState>().synth;
+                // Get the synth state
                 let synth_state = &handle.state::<SynthState>().synth;
                 let mut synth = synth_state.lock().unwrap();
 
@@ -134,32 +121,10 @@ fn main() {
                 let pressure = message[2] as f32 / 127.0;
 
                 if message[0] == 144 { // 144 is the event for note on
-                    // sink.stop();
-                    // sink.append(synth::Synth::sawtooth_wave(hz).amplify(pressure));
-                    // println!("hz: {}", hz);
-                    // stream_handle.play_raw(synth::Synth::square_wave(hz).amplify(0.1)).unwrap();
-
-                    // let sink = Sink::try_new(&stream_handle).unwrap();
-                    // sink.append(Oscillator::sawtooth_wave(hz).amplify(pressure));
-                    // sink.play();
-                    // sinks.sinks.lock().unwrap().insert(message[1], sink);
-
                     let audio_source = Oscillator::sawtooth_wave(hz).amplify(pressure);
                     synth.play_source(Box::new(audio_source), message[1])
                 }
                 if message[0] == 128 { // 128 is the event for note off
-                    // sink.stop();
-                    // println!("Stop note {}", message[1]);
-
-                    // match sinks.sinks.lock().unwrap().remove(&message[1]) {
-                    //     Some(sink) => {
-                    //         sink.stop();
-                    //     }
-                    //     None => {
-                    //         println!("No sink found for note {}", message[1]);
-                    //     }
-                    // }
-
                     synth.release_source(message[1])
                 }
             });
