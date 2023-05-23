@@ -83,22 +83,22 @@ impl Synth {
 			let volume = if elapsed < envelope.attack {
 				// Attack
 				// linear
-				// elapsed / envelope.attack
+				elapsed / envelope.attack
 				// exponential
-				(elapsed / envelope.attack).powf(2.0)
+				// (elapsed / envelope.attack).powf(2.0)
 			} else if elapsed < envelope.attack + envelope.decay {
 				// Decay
 				// linear
-				// 1.0 - (elapsed - envelope.attack) / envelope.decay * (1.0 - envelope.sustain)
+				1.0 - (elapsed - envelope.attack) / envelope.decay * (1.0 - envelope.sustain)
 				// exponential
-				1.0 - (elapsed - envelope.attack) / envelope.decay * (1.0 - envelope.sustain).powf(2.0)
+				// 1.0 - (elapsed - envelope.attack) / envelope.decay * (1.0 - envelope.sustain).powf(2.0)
 			} else if envelope_state.is_releasing {
 				// Release
 				let elapsed_since_released = now.duration_since(envelope_state.time_released.unwrap()).as_secs_f32();
 				// linear
-				// envelope.sustain - elapsed_since_released / envelope.release * envelope.sustain
+				envelope.sustain - elapsed_since_released / envelope.release * envelope.sustain
 				// exponential
-				envelope.sustain * (1.0 - elapsed_since_released / envelope.release).powf(2.0)
+				// envelope.sustain * (1.0 - elapsed_since_released / envelope.release).powf(2.0)
 			} else {
 				// Sustain
 				envelope.sustain
@@ -106,10 +106,14 @@ impl Synth {
 
 			sink.set_volume(volume);
 
-			if envelope_state.is_releasing && elapsed > envelope.release {
-				// This is done as a separate step to avoid a second mutable borrow of self.envelope_states
-				// First borrow is when .iter_mut() is called, second is when .remove() is called
-				to_remove.push(*source_id);
+			
+			if envelope_state.is_releasing {
+				let elapsed_since_released = now.duration_since(envelope_state.time_released.unwrap()).as_secs_f32();
+				if elapsed_since_released >= envelope.release + 0.1 {
+					// This is done as a seperate step to avoid a second mutable borrow of self.envelope_states
+					// First borrow is when .iter_mut() is called, second is when .remove() is called
+					to_remove.push(*source_id);
+				}
 			}
 		}
 
