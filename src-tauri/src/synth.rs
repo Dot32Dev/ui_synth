@@ -94,7 +94,7 @@ impl Synth {
 				// 1.0 - (elapsed - envelope.attack) / envelope.decay * (1.0 - envelope.sustain).powf(2.0)
 			} else if envelope_state.is_releasing {
 				// Release
-				let elapsed_since_released = now.duration_since(envelope_state.time_released.unwrap()).as_secs_f32();
+				let elapsed_since_released = now.duration_since(envelope_state.time_released.unwrap()).as_secs_f32().min(envelope.release);
 				// linear
 				envelope.sustain - elapsed_since_released / envelope.release * envelope.sustain
 				// exponential
