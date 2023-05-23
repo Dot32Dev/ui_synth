@@ -13,6 +13,7 @@ mod synth;
 mod oscillator;
 
 use synth::Synth;
+use synth::Envelope;
 use oscillator::Oscillator;
 
 use std::sync::{Arc, Mutex};
@@ -122,7 +123,8 @@ fn main() {
 
                 if message[0] == 144 { // 144 is the event for note on
                     let audio_source = Oscillator::sawtooth_wave(hz).amplify(pressure);
-                    synth.play_source(Box::new(audio_source), message[1])
+                    let envelope = Envelope::new(0.1, 0.2, 0.7, 1.3); // example envelope
+                    synth.play_source(Box::new(audio_source), message[1], envelope)
                 }
                 if message[0] == 128 { // 128 is the event for note off
                     synth.release_source(message[1])

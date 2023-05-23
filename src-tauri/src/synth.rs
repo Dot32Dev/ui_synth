@@ -13,7 +13,7 @@ struct EnvelopeState {
 }
 
 // The envelope struct
-struct Envelope {
+pub struct Envelope {
 	attack: f32,
 	decay: f32,
 	sustain: f32,
@@ -21,7 +21,7 @@ struct Envelope {
 }
 
 impl Envelope {
-	fn new(attack: f32, decay: f32, sustain: f32, release: f32) -> Envelope {
+	pub fn new(attack: f32, decay: f32, sustain: f32, release: f32) -> Envelope {
 		Envelope {
 			attack,
 			decay,
@@ -46,11 +46,11 @@ impl Synth {
 		}
 	}
 
-	pub fn play_source(&mut self, audio_source: Box<dyn Source<Item = f32> + Send>, source_id: u8) {
+	pub fn play_source(&mut self, audio_source: Box<dyn Source<Item = f32> + Send>, source_id: u8, envelope: Envelope) {
 		let sink = Sink::try_new(&self.stream_handle).expect("Failed to create sink");
 		sink.append(audio_source);
 
-		let envelope = Envelope::new(0.1, 0.2, 0.7, 1.3); // example envelope
+		// let envelope = Envelope::new(0.1, 0.2, 0.7, 1.3); // example envelope
 		let envelope_state = EnvelopeState {
 			envelope,
 			start_time: Instant::now(),
