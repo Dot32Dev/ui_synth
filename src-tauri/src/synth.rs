@@ -4,14 +4,6 @@ use std::time::Instant;
 use rodio::source::Source;
 use rodio::Sink;
 
-// The envelope state struct
-struct EnvelopeState {
-    envelope: Envelope,
-    start_time: Instant,
-    is_releasing: bool,
-    time_released: Option<Instant>,
-}
-
 // The envelope struct
 pub struct Envelope {
     attack: f32,
@@ -28,6 +20,24 @@ impl Envelope {
             sustain,
             release,
         }
+    }
+}
+
+// The envelope state struct
+struct EnvelopeState {
+    envelope: Envelope,
+    start_time: Instant,
+    is_releasing: bool,
+    time_released: Option<Instant>,
+}
+
+impl EnvelopeState {
+    fn time_since_start(&self) -> f32 {
+        Instant::now().duration_since(self.start_time).as_secs_f32()
+    }
+
+    fn time_since_release(&self) -> Option<f32> {
+		self.time_released.map(|time| Instant::now().duration_since(time).as_secs_f32().min(self.envelope.release))
     }
 }
 
@@ -48,14 +58,14 @@ impl Synth {
 
     pub fn play_source(
         &mut self,
-        audio_source: Box<dyn Source<Item = f32> + Send>,
-        source_id: u8,
-        envelope: Envelope,
+        audio_source: Box<dyn Source<Item = f32> + Send>, // This will likely be created with the Oscillator
+        source_id: u8, // This is to differentiate between different "sources", so that multiple can be played at once
+        envelope: Envelope, // The envelope will effect the volume of the audio source over time
     ) {
+		// Sink is a handle to the audio output device
         let sink = Sink::try_new(&self.stream_handle).expect("Failed to create sink");
         sink.append(audio_source);
 
-        // let envelope = Envelope::new(0.1, 0.2, 0.7, 1.3); // example envelope
         let envelope_state = EnvelopeState {
             envelope,
             start_time: Instant::now(),
@@ -80,7 +90,7 @@ impl Synth {
         let mut to_remove = Vec::new();
 
         for (source_id, envelope_state) in self.envelope_states.iter_mut() {
-            let elapsed = now.duration_since(envelope_state.start_time).as_secs_f32();
+			let elapsed = envelope_state.time_since_start();
 
             let envelope = &envelope_state.envelope;
             let sink = self.audio_sinks.get_mut(source_id).unwrap();
@@ -92,12 +102,8 @@ impl Synth {
                 // Decay
                 1.0 - (elapsed - envelope.attack) / envelope.decay * (1.0 - envelope.sustain)
             } else if envelope_state.is_releasing {
-                // Release
-                let elapsed_since_released = now
-                    .duration_since(envelope_state.time_released.unwrap())
-                    .as_secs_f32()
-                    .min(envelope.release);
-                envelope.sustain - elapsed_since_released / envelope.release * envelope.sustain
+				// Release
+				envelope_state.time_since_release().unwrap() / envelope.release * envelope.sustain
             } else {
                 // Sustain
                 envelope.sustain
@@ -106,18 +112,15 @@ impl Synth {
             sink.set_volume(volume);
 
             if envelope_state.is_releasing {
-                let elapsed_since_released = now
-                    .duration_since(envelope_state.time_released.unwrap())
-                    .as_secs_f32();
-                if elapsed_since_released >= envelope.release + 0.1 {
-                    // This is done as a seperate step to avoid a second mutable borrow of self.envelope_states
-                    // First borrow is when .iter_mut() is called, second is when .remove() is called
-                    to_remove.push(*source_id);
-                }
+				if envelope_state.time_since_release().unwrap() >= envelope.release + 0.1 {
+					to_remove.push(*source_id);
+				}
             }
         }
 
         for source_id in to_remove {
+			// This is done as a seperate loop to avoid a second mutable borrow of self.envelope_states
+			// First borrow is when .iter_mut() is called, second is when .remove() is called
             self.envelope_states.remove(&source_id);
             self.audio_sinks.remove(&source_id);
         }
