@@ -90,8 +90,6 @@ impl Synth {
     }
 
     pub fn update(&mut self) {
-        let now = Instant::now();
-
         let mut to_remove = Vec::new();
 
         for (source_id, envelope_state) in self.envelope_states.iter_mut() {
