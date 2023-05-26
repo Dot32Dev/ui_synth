@@ -23,15 +23,16 @@ impl Envelope {
     }
 }
 
-// The envelope state struct
-struct EnvelopeState {
+// The active note struct
+struct ActiveNote {
     envelope: Envelope,
     start_time: Instant,
     is_releasing: bool,
     time_released: Option<Instant>,
+    sink: Sink,
 }
 
-impl EnvelopeState {
+impl ActiveNote {
     fn time_since_start(&self) -> f32 {
         Instant::now().duration_since(self.start_time).as_secs_f32()
     }
@@ -47,16 +48,14 @@ impl EnvelopeState {
 }
 
 pub struct Synth {
-    audio_sinks: HashMap<u8, Sink>,
-    envelope_states: HashMap<u8, EnvelopeState>,
+    active_notes: HashMap<u8, ActiveNote>,
     stream_handle: rodio::OutputStreamHandle,
 }
 
 impl Synth {
     pub fn new(stream_handle: rodio::OutputStreamHandle) -> Synth {
         Synth {
-            audio_sinks: HashMap::new(),
-            envelope_states: HashMap::new(),
+            active_notes: HashMap::new(),
             stream_handle,
         }
     }
@@ -71,32 +70,31 @@ impl Synth {
         let sink = Sink::try_new(&self.stream_handle).expect("Failed to create sink");
         sink.append(audio_source);
 
-        let envelope_state = EnvelopeState {
+        let active_note = ActiveNote {
             envelope,
             start_time: Instant::now(),
             is_releasing: false,
             time_released: None,
+            sink,
         };
 
-        self.audio_sinks.insert(source_id, sink);
-        self.envelope_states.insert(source_id, envelope_state);
+        self.active_notes.insert(source_id, active_note);
     }
 
     pub fn release_source(&mut self, source_id: u8) {
-        if let Some(envelope_state) = self.envelope_states.get_mut(&source_id) {
-            envelope_state.is_releasing = true;
-            envelope_state.time_released = Some(Instant::now());
+        if let Some(active_note) = self.active_notes.get_mut(&source_id) {
+            active_note.is_releasing = true;
+            active_note.time_released = Some(Instant::now());
         }
     }
 
     pub fn update(&mut self) {
         let mut to_remove = Vec::new();
 
-        for (source_id, envelope_state) in self.envelope_states.iter_mut() {
-            let elapsed = envelope_state.time_since_start();
+        for (source_id, active_note) in self.active_notes.iter_mut() {
+            let elapsed = active_note.time_since_start();
 
-            let envelope = &envelope_state.envelope;
-            let sink = self.audio_sinks.get_mut(source_id).unwrap();
+            let envelope = &active_note.envelope;
 
             let volume = if elapsed < envelope.attack {
                 // Attack
@@ -104,28 +102,28 @@ impl Synth {
             } else if elapsed < envelope.attack + envelope.decay {
                 // Decay
                 1.0 - (elapsed - envelope.attack) / envelope.decay * (1.0 - envelope.sustain)
-            } else if envelope_state.is_releasing {
+            } else if active_note.is_releasing {
                 // Release
-                envelope_state.time_since_release().unwrap() / envelope.release * envelope.sustain
+                active_note.time_since_release().unwrap_or(0.0) / envelope.release
+                    * envelope.sustain
             } else {
                 // Sustain
                 envelope.sustain
             };
 
-            sink.set_volume(volume);
+            active_note.sink.set_volume(volume);
 
-            if envelope_state.is_releasing {
-                if envelope_state.time_since_release().unwrap() >= envelope.release + 0.1 {
+            if active_note.is_releasing {
+                if active_note.time_since_release().unwrap_or(0.0) >= envelope.release + 0.1 {
                     to_remove.push(*source_id);
                 }
             }
         }
 
         for source_id in to_remove {
-            // This is done as a seperate loop to avoid a second mutable borrow of self.envelope_states
+            // This is done as a seperate loop to avoid a second mutable borrow of self.active_notes
             // First borrow is when .iter_mut() is called, second is when .remove() is called
-            self.envelope_states.remove(&source_id);
-            self.audio_sinks.remove(&source_id);
+            self.active_notes.remove(&source_id);
         }
     }
 }
