@@ -4,16 +4,16 @@
     windows_subsystem = "windows"
 )]
 
+use midir::{MidiInput, MidiInputConnection};
 use rodio::source::Source;
 use rodio::OutputStream;
-use midir::{MidiInput, MidiInputConnection};
 
 // Import synth module
 mod oscillator;
 mod synth;
 
 use oscillator::Oscillator;
-use synth::{Synth, Envelope};
+use synth::{Envelope, Synth};
 
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
