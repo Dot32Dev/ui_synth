@@ -38,12 +38,8 @@ impl ActiveNote {
     }
 
     fn time_since_release(&self) -> Option<f32> {
-        self.time_released.map(|time| {
-            Instant::now()
-                .duration_since(time)
-                .as_secs_f32()
-                .min(self.envelope.release)
-        })
+        self.time_released
+            .map(|time| Instant::now().duration_since(time).as_secs_f32())
     }
 }
 
@@ -104,8 +100,11 @@ impl Synth {
                 1.0 - (elapsed - envelope.attack) / envelope.decay * (1.0 - envelope.sustain)
             } else if active_note.is_releasing {
                 // Release
-                active_note.time_since_release().unwrap_or(0.0) / envelope.release
-                    * envelope.sustain
+                let time_since_release = active_note
+                    .time_since_release()
+                    .unwrap_or(0.0)
+                    .min(envelope.release);
+                envelope.sustain - time_since_release / envelope.release * envelope.sustain
             } else {
                 // Sustain
                 envelope.sustain
