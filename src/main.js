@@ -58,7 +58,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
     // If the key is mapped to the computer keyboard, add the corrosponding letter
     if (i >= 60 && i <= 75) {
-      key.innerHTML = computer_keyboard_keys[i - 60];
+      key.innerHTML = `<kbd>${computer_keyboard_keys[i - 60]}</kbd>`;
     }
 
     // Detect whether the key is black or white
