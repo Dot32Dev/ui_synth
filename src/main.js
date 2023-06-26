@@ -1,7 +1,7 @@
 if (window.__TAURI__) {
-  const { invoke } = window.__TAURI__.tauri;
+  var { invoke } = window.__TAURI__.tauri;
   // Import event module and use listen function
-  const { emit, listen } = window.__TAURI__.event;
+  var { emit, listen } = window.__TAURI__.event;
 }
 
 async function open_midi_connection() {
@@ -15,6 +15,25 @@ async function update_synth() {
     await invoke("update_synth");
   }
 }
+
+let computer_keyboard_keys = [
+  "a",
+  "w",
+  "s",
+  "e",
+  "d",
+  "f",
+  "t",
+  "g",
+  "y",
+  "h",
+  "u",
+  "j",
+  "k",
+  "o",
+  "l",
+  "p",
+];
 
 window.addEventListener("DOMContentLoaded", () => {
   open_midi_connection();
@@ -36,7 +55,11 @@ window.addEventListener("DOMContentLoaded", () => {
     const key = document.createElement("div");
     key.classList.add("key");
     key.classList.add(`k${i}`);
-    key.innerHTML = i;
+
+    // If the key is mapped to the computer keyboard, add the corrosponding letter
+    if (i >= 60 && i <= 75) {
+      key.innerHTML = computer_keyboard_keys[i - 60];
+    }
 
     // Detect whether the key is black or white
     if (i % 12 == 1 || i % 12 == 3 || i % 12 == 6 || i % 12 == 8 || i % 12 == 10) {
@@ -94,53 +117,10 @@ document.addEventListener("keyup", function(event) {
 // Function to call send_note_key when corrosponding computer keys are pressed
 function key_event(key, type) { 
   // Map computer keyboard keys to piano keys
-  if (key == "a") {
-    send_note_key(60, type);
-  }
-  if (key == "w") {
-    send_note_key(61, type);
-  }
-  if (key == "s") {
-    send_note_key(62, type);
-  }
-  if (key == "e") {
-    send_note_key(63, type);
-  }
-  if (key == "d") {
-    send_note_key(64, type);
-  }
-  if (key == "f") {
-    send_note_key(65, type);
-  }
-  if (key == "t") {
-    send_note_key(66, type);
-  }
-  if (key == "g") {
-    send_note_key(67, type);
-  }
-  if (key == "y") {
-    send_note_key(68, type);
-  }
-  if (key == "h") {
-    send_note_key(69, type);
-  }
-  if (key == "u") {
-    send_note_key(70, type);
-  }
-  if (key == "j") {
-    send_note_key(71, type);
-  }
-  if (key == "k") {
-    send_note_key(72, type);
-  }
-  if (key == "o") {
-    send_note_key(73, type);
-  }
-  if (key == "l") {
-    send_note_key(74, type);
-  }
-  if (key == "p") {
-    send_note_key(75, type);
+  for (let i = 0; i < computer_keyboard_keys.length; i++) {
+    if (key == computer_keyboard_keys[i]) {
+      send_note_key(60 + i, type);
+    }
   }
 }
 
