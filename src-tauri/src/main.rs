@@ -119,7 +119,7 @@ fn main() {
                 if message[0] == 144 {
                     // 144 is the event for note on
                     let audio_source = Oscillator::sawtooth_wave(hz).amplify(pressure);
-                    let envelope = Envelope::new(0.1, 0.2, 0.7, 1.3); // example envelope
+                    let envelope = Envelope::new(0.1, 0.2, 0.7, 0.3); // example envelope
                     synth.play_source(Box::new(audio_source), message[1], envelope)
                 }
                 if message[0] == 128 {

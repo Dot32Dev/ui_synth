@@ -45,7 +45,7 @@ impl ActiveNote {
 
 pub struct Synth {
     active_notes: HashMap<u8, ActiveNote>,
-    stream_handle: rodio::OutputStreamHandle,
+    stream_handle: rodio::OutputStreamHandle, // Required to create sinks
 }
 
 impl Synth {
