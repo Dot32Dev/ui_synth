@@ -24,12 +24,16 @@ body {
     /* background-color: hsl(0, 0%, 17%); */
     /* background-color: hsl(0, 64%, 40%); */
     border-bottom: 1px solid hsl(0, 64%, 40%);
-    color: hsl(0, 0%, 100%);
+    color: hsla(0, 0%, 100%, 0.531);
     text-align: center;
-    /* font-size: 1.5em; */
+    font-size: 12px;
     /* padding: 0.5em; */
-    height: 2em;
-    font-family: 'PT_Sans custom';
+    height: 2.5em;
+    /* font-family: 'PT_Sans custom'; */
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* .black::after {

@@ -46,6 +46,13 @@ window.addEventListener("DOMContentLoaded", () => {
   const piano = document.createElement("div");
   piano.classList.add("piano");
   body.appendChild(piano);
+
+  // // Create a new tag to label the piano
+  // const piano_label = document.createElement("h2");
+  // piano_label.innerHTML = "Piano";
+  // piano_label.classList.add("piano-label");
+  // piano.appendChild(piano_label);
+
   // Spawn keys inside the piano
   for (let i = 36; i < 85; i++) {
     // Create a key parent div

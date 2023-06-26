@@ -68,6 +68,7 @@
         "title": "ui synth",
         "width": 800,
         "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
         "maximized": true
       }
     ]
