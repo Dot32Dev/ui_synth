@@ -52,7 +52,7 @@ body {
     border-radius: 10px;
     width: fit-content;
     /* overflow: hidden; */
-    /* background-color: black; */
+    background-color: black;
     padding: 8px;
     margin: 0 auto;
 }
@@ -82,6 +82,7 @@ body {
 .key-parent {
     margin: 0px;
     padding: 0;
+    /* height: 50em; */
 }
 
 .key-parent.white {
@@ -130,3 +131,7 @@ kbd {
     border: 1px solid hsl(0, 0%, 75%);
     box-shadow: 0 2px 0 1px hsl(0, 0%, 75%);
 } */
+
+/* .white.key-parent:nth-child(odd of .white.key-parent) {
+    background-color: hsl(0, 64%, 35%);
+}  */
