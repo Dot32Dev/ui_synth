@@ -135,14 +135,21 @@ fn file_upload(window: Window<Wry>) {
                         match message {
                             // If the message is a note on message
                             midly::MidiMessage::NoteOn { key, vel } => {
-                                handle.emit_and_trigger("midi_message", MidiMessage { message: vec![144, key.into(), vel.into()] }).map_err(|e| {
-                                    println!("Error sending midi message: {}", e);
-                                })
-                                .ok();
+                                if vel > 0 {
+                                    handle.emit_and_trigger("midi_message", MidiMessage { message: vec![144, key.into(), vel.into()] }).map_err(|e| {
+                                        println!("Error sending midi message: {}", e);
+                                    })
+                                    .ok();
+                                } else {
+                                    handle.emit_and_trigger("midi_message", MidiMessage { message: vec![128, key.into(), vel.into()] }).map_err(|e| {
+                                        println!("Error sending midi message: {}", e);
+                                    })
+                                    .ok();
+                                }
                             }
                             // If the message is a note off message
-                            midly::MidiMessage::NoteOff { key, vel: _ } => {
-                                handle.emit_and_trigger("midi_message", MidiMessage { message: vec![128, key.into(), 0] }).map_err(|e| {
+                            midly::MidiMessage::NoteOff { key, vel } => {
+                                handle.emit_and_trigger("midi_message", MidiMessage { message: vec![128, key.into(), vel.into()] }).map_err(|e| {
                                     println!("Error sending midi message: {}", e);
                                 })
                                 .ok();
