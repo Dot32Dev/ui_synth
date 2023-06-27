@@ -102,12 +102,13 @@ fn file_upload(window: Window<Wry>) {
             let data = std::fs::read(p.clone()).unwrap();
             let mut smf = midly::Smf::parse(&data).unwrap();
 
-            // let track_count = smf.tracks.len();
+            let track_count = smf.tracks.len();
+            println!("Track count: {}", track_count);
             let header = smf.header;
             let timing = header.timing;
             println!("Timing: {:?}", timing);
             let mut track_tempo = 0;
-            let meta_track = smf.tracks.remove(0);
+            let meta_track = smf.tracks.remove(1);
             for event in meta_track.iter() {
                 println!("Event: {:?}", event);
                 match event.kind {
@@ -128,7 +129,7 @@ fn file_upload(window: Window<Wry>) {
                 }
             }
             println!("Time per tick: {}", time_per_tick);
-            let first_track = smf.tracks.remove(0);
+            let first_track = smf.tracks.remove(2);
 
             let handle = Arc::new(window).clone();
             handle
@@ -220,7 +221,7 @@ fn main() {
                 if message[0] == 144 {
                     // 144 is the event for note on
                     let audio_source = Oscillator::sawtooth_wave(hz).amplify(pressure);
-                    let envelope = Envelope::new(0.1, 2.0, 0.0, 0.3); // example envelope
+                    let envelope = Envelope::new(0.0, 2.0, 0.0, 0.0); // example envelope
                     synth.play_source(Box::new(audio_source), message[1], envelope)
                 }
                 if message[0] == 128 {
