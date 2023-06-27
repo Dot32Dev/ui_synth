@@ -255,19 +255,20 @@ fn main() {
 fn get_midi_data(smf: &midly::Smf) -> MidiData {
     let mut tempo = 500000;
     let mut length_in_ticks = 0;
-    let mut what_set_the_length = "none".to_string();
     for track in smf.tracks.iter() {
+        let mut length_in_ticks_tmp = 0;
         for event in track.iter() {
             let delta_time = event.delta.as_int();
-            length_in_ticks += delta_time;
-            if what_set_the_length != format!("{:?}", event.kind) {
-                what_set_the_length = format!("{:?}", event.kind);
-                println!("Length set by: {:?}", event.kind);
-                println!("Length in ticks: {}", length_in_ticks)
-            }
+            length_in_ticks_tmp += delta_time;
             match event.kind {
                 midly::TrackEventKind::Meta(midly::MetaMessage::Tempo(tempo_event)) => {
                     tempo = tempo_event.as_int();
+                }
+                midly::TrackEventKind::Meta(midly::MetaMessage::EndOfTrack) => {
+                    if length_in_ticks_tmp > length_in_ticks {
+                        length_in_ticks = length_in_ticks_tmp;
+                    }
+                    break;
                 }
                 _ => {}
             }
