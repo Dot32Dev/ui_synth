@@ -35,6 +35,11 @@ struct MidiMessage {
     message: Vec<u8>,
 }
 
+struct MidiData {
+    tempo: u32,
+    length_in_ticks: u32,
+}
+
 #[tauri::command]
 fn open_midi_connection(midi_state: tauri::State<'_, MidiState>, window: Window<Wry>) {
     let handle = Arc::new(window).clone();
@@ -107,18 +112,28 @@ fn file_upload(window: Window<Wry>) {
             let header = smf.header;
             let timing = header.timing;
             println!("Timing: {:?}", timing);
-            let track_tempo = get_tempo(&smf);
+            // let track_tempo = get_tempo(&smf);
+            let data = get_midi_data(&smf);
+            println!("Length in ticks: {}", data.length_in_ticks);
             let time_per_tick;
             match timing {
                 midly::Timing::Metrical(ticks_per_beat) => {
-                    time_per_tick = ((track_tempo as f32) / ticks_per_beat.as_int() as f32);
+                    time_per_tick = ((data.tempo as f32) / ticks_per_beat.as_int() as f32);
                 }
                 midly::Timing::Timecode(fps, _) => {
                     time_per_tick = 1.0 / fps.as_f32();
                 }
             }
             println!("Time per tick: {}", time_per_tick);
-            let first_track = smf.tracks.remove(2);
+            // Calculate length in microseconds
+            let length_in_microseconds = data.length_in_ticks as f32 * time_per_tick;
+            println!("Length in microseconds: {}", length_in_microseconds);
+            // Print length in seconds
+            println!("Length in seconds: {}", length_in_microseconds / 1000000.0);
+            // Print length in minutes
+            println!("Length in minutes: {}", length_in_microseconds / 60000000.0);
+
+            let first_track = smf.tracks.remove(3);
 
             let handle = Arc::new(window).clone();
             handle
@@ -144,6 +159,19 @@ fn file_upload(window: Window<Wry>) {
                 let wait_time = now + std::time::Duration::from_micros(track_time as u64);
                 // Wait until the time to play the event
                 while std::time::Instant::now() < wait_time {}
+
+                let progress_bar_value = (track_time as f32 / length_in_microseconds) * 100.0;
+                // Emit update_progress_bar
+                handle
+                    .emit(
+                        "update_progress_bar",
+                        progress_bar_value,
+                    )
+                    .map_err(|e| {
+                        println!("Error sending midi message: {}", e);
+                    })
+                    .ok();
+
                 // Match the event
                 match event.kind {
                     // If the event is a note on event
@@ -152,7 +180,7 @@ fn file_upload(window: Window<Wry>) {
                             // If the message is a note on message
                             midly::MidiMessage::NoteOn { key, vel } => {
                                 if vel > 0 {
-                                    println!("Note on");
+                                    // println!("Note on");
                                     handle.emit_and_trigger("midi_message", MidiMessage { message: vec![144, key.into(), vel.into()] }).map_err(|e| {
                                         println!("Error sending midi message: {}", e);
                                     })
@@ -224,18 +252,26 @@ fn main() {
         .expect("error while running tauri application");
 }
 
-// Function to find time per tick from a midi file
-// It will loop over every track and event for meta messages
-fn get_tempo(smf: &midly::Smf) -> u32 {
+fn get_midi_data(smf: &midly::Smf) -> MidiData {
+    let mut tempo = 500000;
+    let mut length_in_ticks = 0;
+    let mut what_set_the_length = "none".to_string();
     for track in smf.tracks.iter() {
         for event in track.iter() {
+            let delta_time = event.delta.as_int();
+            length_in_ticks += delta_time;
+            if what_set_the_length != format!("{:?}", event.kind) {
+                what_set_the_length = format!("{:?}", event.kind);
+                println!("Length set by: {:?}", event.kind);
+                println!("Length in ticks: {}", length_in_ticks)
+            }
             match event.kind {
-                midly::TrackEventKind::Meta(midly::MetaMessage::Tempo(tempo)) => {
-                    return tempo.as_int();
+                midly::TrackEventKind::Meta(midly::MetaMessage::Tempo(tempo_event)) => {
+                    tempo = tempo_event.as_int();
                 }
                 _ => {}
             }
         }
     };
-    500000
+    MidiData { tempo, length_in_ticks }
 }

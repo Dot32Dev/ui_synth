@@ -37,8 +37,20 @@ if (window.__TAURI__) {
 	  fild_upload();
 	});
 
+	//Create a progress bar inside of the midi_player widget
+	const progress_bar = document.createElement("progress");
+	// progress_bar.classList.add("progress_bar");
+	// Add value and max attributes to the progress bar
+	progress_bar.setAttribute("value", "0");
+	progress_bar.setAttribute("max", "100");
+	// Add id
+	progress_bar.setAttribute("id", "progress_bar");
+	// Add innerHTML
+	progress_bar.innerHTML = "0%";
+	widget.appendChild(progress_bar);
+
 	if (window.__TAURI__) {
-		const unlisten = listen("midi_file_data", (event) => {
+		listen("midi_file_data", (event) => {
 			// Get the midi_player widget
 			const midi_player_widget = document.querySelector(".midi_player");
 			// Create a new p tag inside of the midi_player widget
@@ -47,6 +59,14 @@ if (window.__TAURI__) {
 			midi_player_widget.appendChild(midi_player_text);
 
 			console.log(event.payload);
+		})
+
+		listen("update_progress_bar", (event) => {
+			// Get the progress bar
+			const progress_bar = document.querySelector("#progress_bar");
+			// Update the progress bar
+			progress_bar.setAttribute("value", event.payload);
+			progress_bar.innerHTML = event.payload + "%";
 		})
 	  }
   }
