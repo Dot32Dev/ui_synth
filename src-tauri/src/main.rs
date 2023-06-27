@@ -96,7 +96,7 @@ fn update_synth(synth_state: tauri::State<'_, SynthState>) {
 #[tauri::command(async)]
 fn file_upload(window: Window<Wry>) {
     dialog::FileDialogBuilder::default()
-        .add_filter("Midi", &["midi"])
+        .add_filter("Midi", &["midi", "mid"])
         .pick_file(|path_buf| match path_buf {
         Some(p) => {
             let data = std::fs::read(p.clone()).unwrap();
