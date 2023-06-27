@@ -107,18 +107,7 @@ fn file_upload(window: Window<Wry>) {
             let header = smf.header;
             let timing = header.timing;
             println!("Timing: {:?}", timing);
-            let mut track_tempo = 0;
-            let meta_track = smf.tracks.remove(1);
-            for event in meta_track.iter() {
-                println!("Event: {:?}", event);
-                match event.kind {
-                    midly::TrackEventKind::Meta(midly::MetaMessage::Tempo(tempo)) => {
-                        println!("Tempo: {}", tempo);
-                        track_tempo = tempo.into();
-                    }
-                    _ => {}
-                }
-            }
+            let track_tempo = get_tempo(&smf);
             let time_per_tick;
             match timing {
                 midly::Timing::Metrical(ticks_per_beat) => {
@@ -233,4 +222,20 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+// Function to find time per tick from a midi file
+// It will loop over every track and event for meta messages
+fn get_tempo(smf: &midly::Smf) -> u32 {
+    for track in smf.tracks.iter() {
+        for event in track.iter() {
+            match event.kind {
+                midly::TrackEventKind::Meta(midly::MetaMessage::Tempo(tempo)) => {
+                    return tempo.as_int();
+                }
+                _ => {}
+            }
+        }
+    };
+    500000
 }
