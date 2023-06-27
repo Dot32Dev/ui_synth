@@ -16,6 +16,7 @@ use oscillator::Oscillator;
 use synth::{Envelope, Synth};
 
 use serde::{Deserialize, Serialize};
+use tauri::http::header;
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, Window, Wry};
 use tauri::api::dialog;
@@ -101,8 +102,33 @@ fn file_upload(window: Window<Wry>) {
             let data = std::fs::read(p.clone()).unwrap();
             let mut smf = midly::Smf::parse(&data).unwrap();
 
-            let track_count = smf.tracks.len();
-            let first_track = smf.tracks.remove(1);
+            // let track_count = smf.tracks.len();
+            let header = smf.header;
+            let timing = header.timing;
+            println!("Timing: {:?}", timing);
+            let mut track_tempo = 0;
+            let meta_track = smf.tracks.remove(0);
+            for event in meta_track.iter() {
+                println!("Event: {:?}", event);
+                match event.kind {
+                    midly::TrackEventKind::Meta(midly::MetaMessage::Tempo(tempo)) => {
+                        println!("Tempo: {}", tempo);
+                        track_tempo = tempo.into();
+                    }
+                    _ => {}
+                }
+            }
+            let time_per_tick;
+            match timing {
+                midly::Timing::Metrical(ticks_per_beat) => {
+                    time_per_tick = ((track_tempo as f32) / ticks_per_beat.as_int() as f32);
+                }
+                midly::Timing::Timecode(fps, _) => {
+                    time_per_tick = 1.0 / fps.as_f32();
+                }
+            }
+            println!("Time per tick: {}", time_per_tick);
+            let first_track = smf.tracks.remove(0);
 
             let handle = Arc::new(window).clone();
             handle
@@ -123,9 +149,9 @@ fn file_upload(window: Window<Wry>) {
                 println!("Event: {:?}", event);
                 // Get the delta time of the event
                 let delta_time = event.delta.as_int();
-                track_time += delta_time;
+                track_time += delta_time*time_per_tick as u32;
                 // Get the time to wait before playing the event
-                let wait_time = now + std::time::Duration::from_millis(track_time as u64);
+                let wait_time = now + std::time::Duration::from_micros(track_time as u64);
                 // Wait until the time to play the event
                 while std::time::Instant::now() < wait_time {}
                 // Match the event
@@ -136,6 +162,7 @@ fn file_upload(window: Window<Wry>) {
                             // If the message is a note on message
                             midly::MidiMessage::NoteOn { key, vel } => {
                                 if vel > 0 {
+                                    println!("Note on");
                                     handle.emit_and_trigger("midi_message", MidiMessage { message: vec![144, key.into(), vel.into()] }).map_err(|e| {
                                         println!("Error sending midi message: {}", e);
                                     })
@@ -193,7 +220,7 @@ fn main() {
                 if message[0] == 144 {
                     // 144 is the event for note on
                     let audio_source = Oscillator::sawtooth_wave(hz).amplify(pressure);
-                    let envelope = Envelope::new(0.1, 0.2, 0.7, 0.3); // example envelope
+                    let envelope = Envelope::new(0.1, 2.0, 0.0, 0.3); // example envelope
                     synth.play_source(Box::new(audio_source), message[1], envelope)
                 }
                 if message[0] == 128 {

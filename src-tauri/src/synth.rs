@@ -104,7 +104,10 @@ impl Synth {
                     .time_since_release()
                     .unwrap_or(0.0)
                     .min(envelope.release);
-                envelope.sustain - time_since_release / envelope.release * envelope.sustain
+                // Linear interpolation between sustain and 0
+                // envelope.sustain - time_since_release / envelope.release * envelope.sustain
+                // Use the ease out quint function instead of linear interpolation
+                envelope.sustain - ease_out_quint(time_since_release / envelope.release) * envelope.sustain
             } else {
                 // Sustain
                 envelope.sustain
@@ -114,6 +117,11 @@ impl Synth {
 
             if active_note.is_releasing {
                 if active_note.time_since_release().unwrap_or(0.0) >= envelope.release + 0.1 {
+                    let time_since_release = active_note
+                    .time_since_release()
+                    .unwrap_or(0.0)
+                    .min(envelope.release);
+                    println!("{}", envelope.sustain - ease_out_quint(time_since_release / envelope.release) * envelope.sustain);
                     to_remove.push(*source_id);
                 }
             }
@@ -125,4 +133,8 @@ impl Synth {
             self.active_notes.remove(&source_id);
         }
     }
+}
+
+fn ease_out_quint(x: f32) -> f32 {
+    1.0 - (1.0 - x).powf(5.0)
 }
