@@ -20,6 +20,7 @@ tauri = { version = "1.2", features = ["dialog-open", "dialog-save", "shell-open
 
 midir = "0.9.1"
 rodio = "0.17.1"
+midly = "0.5"
 
 [features]
 # by default Tauri runs in production mode

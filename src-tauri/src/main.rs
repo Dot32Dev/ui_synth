@@ -92,15 +92,21 @@ fn update_synth(synth_state: tauri::State<'_, SynthState>) {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn file_upload(window: Window<Wry>) {
     dialog::FileDialogBuilder::default()
         .add_filter("Midi", &["midi"])
         .pick_file(|path_buf| match path_buf {
         Some(p) => {
+            let data = std::fs::read(p.clone()).unwrap();
+            let mut smf = midly::Smf::parse(&data).unwrap();
+
+            let track_count = smf.tracks.len();
+            let first_track = smf.tracks.remove(1);
+
             let handle = Arc::new(window).clone();
             handle
-                .emit_and_trigger(
+                .emit(
                     "midi_file_data",
                     p.to_str().unwrap().to_string(),
                 )
@@ -108,6 +114,45 @@ fn file_upload(window: Window<Wry>) {
                     println!("Error sending midi message: {}", e);
                 })
                 .ok();
+
+            // Get std instant of current time
+            let now = std::time::Instant::now();
+            let mut track_time = 0;
+            // Loop over the first track
+            for event in first_track.iter() {
+                println!("Event: {:?}", event);
+                // Get the delta time of the event
+                let delta_time = event.delta.as_int();
+                track_time += delta_time;
+                // Get the time to wait before playing the event
+                let wait_time = now + std::time::Duration::from_millis(track_time as u64);
+                // Wait until the time to play the event
+                while std::time::Instant::now() < wait_time {}
+                // Match the event
+                match event.kind {
+                    // If the event is a note on event
+                    midly::TrackEventKind::Midi { channel: _, message } => {
+                        match message {
+                            // If the message is a note on message
+                            midly::MidiMessage::NoteOn { key, vel } => {
+                                handle.emit_and_trigger("midi_message", MidiMessage { message: vec![144, key.into(), vel.into()] }).map_err(|e| {
+                                    println!("Error sending midi message: {}", e);
+                                })
+                                .ok();
+                            }
+                            // If the message is a note off message
+                            midly::MidiMessage::NoteOff { key, vel: _ } => {
+                                handle.emit_and_trigger("midi_message", MidiMessage { message: vec![128, key.into(), 0] }).map_err(|e| {
+                                    println!("Error sending midi message: {}", e);
+                                })
+                                .ok();
+                            }
+                            _ => {}
+                        }
+                    }
+                    _ => {}
+                }
+            }
         }
         _ => {}
         });
