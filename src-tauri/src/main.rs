@@ -18,6 +18,7 @@ use synth::{Envelope, Synth};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, Window, Wry};
+use tauri::api::dialog;
 
 #[derive(Default)]
 struct MidiState {
@@ -91,6 +92,27 @@ fn update_synth(synth_state: tauri::State<'_, SynthState>) {
     }
 }
 
+#[tauri::command]
+fn file_upload(window: Window<Wry>) {
+    dialog::FileDialogBuilder::default()
+        .add_filter("Midi", &["midi"])
+        .pick_file(|path_buf| match path_buf {
+        Some(p) => {
+            let handle = Arc::new(window).clone();
+            handle
+                .emit_and_trigger(
+                    "midi_file_data",
+                    p.to_str().unwrap().to_string(),
+                )
+                .map_err(|e| {
+                    println!("Error sending midi message: {}", e);
+                })
+                .ok();
+        }
+        _ => {}
+        });
+}
+
 fn main() {
     // Get an output stream handle to the default physical sound device
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
@@ -98,7 +120,7 @@ fn main() {
     let synth = Arc::new(Mutex::new(Synth::new(stream_handle)));
 
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![open_midi_connection, update_synth])
+        .invoke_handler(tauri::generate_handler![open_midi_connection, update_synth, file_upload])
         .manage(MidiState::default())
         .manage(SynthState { synth })
         .setup(|app| {

@@ -17,6 +17,11 @@
         "all": false,
         "open": true
       },
+      "dialog": {
+        "all": false,
+        "save": true,
+        "open": true
+      },
       "window": {
         "startDragging": true
       }

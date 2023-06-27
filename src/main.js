@@ -16,6 +16,8 @@ async function update_synth() {
   }
 }
 
+import {midi_player} from './midi_player.js';
+
 let computer_keyboard_keys = [
   "a",
   "w",
@@ -115,6 +117,7 @@ window.addEventListener("DOMContentLoaded", () => {
     })
   }
 
+  midi_player();
 });
 
 document.addEventListener("keypress", function(event) {
