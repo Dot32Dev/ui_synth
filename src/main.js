@@ -42,16 +42,19 @@ window.addEventListener("DOMContentLoaded", () => {
   // Get body element
   const body = document.querySelector("body");
   console.log(body);
+  // Create a new div inside the body with the class widget-container
+  const widget_container = document.createElement("div");
+  widget_container.classList.add("widget-container");
+  body.appendChild(widget_container);
+  // Create a new tag to label the piano
+  const piano_label = document.createElement("h2");
+  piano_label.innerHTML = "Live Piano";
+  piano_label.classList.add("piano-label");
+  widget_container.appendChild(piano_label);
   // Creat a new div inside the body with the class piano
   const piano = document.createElement("div");
   piano.classList.add("piano");
-  body.appendChild(piano);
-
-  // // Create a new tag to label the piano
-  // const piano_label = document.createElement("h2");
-  // piano_label.innerHTML = "Piano";
-  // piano_label.classList.add("piano-label");
-  // piano.appendChild(piano_label);
+  widget_container.appendChild(piano);
 
   // Spawn keys inside the piano
   for (let i = 36; i < 85; i++) {

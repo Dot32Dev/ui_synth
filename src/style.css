@@ -49,16 +49,27 @@ body {
     background-color: white;
 }
 
+.widget-container {
+    background-color: black;
+    padding: 8px;
+    margin: 30px auto;
+    width: fit-content;
+    border-radius: 10px;
+    color: white;
+}
+
+h2 {
+    border-bottom: 2px solid gray;
+    margin-top: 0;
+    padding-bottom: 5px;
+}
+
 .piano {
     display: flex;
     flex-direction: row;
     justify-content: center;
-    border-radius: 10px;
     width: fit-content;
     /* overflow: hidden; */
-    background-color: black;
-    padding: 8px;
-    margin: 0 auto;
 }
 
 .key {
