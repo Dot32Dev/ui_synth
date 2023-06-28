@@ -114,7 +114,7 @@ fn update_synth(synth_state: tauri::State<'_, SynthState>) {
     }
 }
 
-static mut file_data: Vec<u8> = Vec::new();
+static mut FILL_DATA: Vec<u8> = Vec::new();
 
 #[tauri::command]
 async fn file_upload(window: Window<Wry>) {
@@ -123,9 +123,9 @@ async fn file_upload(window: Window<Wry>) {
         .pick_file();
     unsafe {
         if let Some(p) = path_buf {
-            file_data = std::fs::read(p).unwrap();
+            FILL_DATA = std::fs::read(p).unwrap();
         }
-        let mut smf = midly::Smf::parse(&file_data).unwrap();
+        let mut smf = midly::Smf::parse(&FILL_DATA).unwrap();
 
         let track_count = smf.tracks.len();
         println!("Track count: {}", track_count);
@@ -137,7 +137,7 @@ async fn file_upload(window: Window<Wry>) {
         println!("Tempo: {}", data.tempo);
         println!("Meta track index: {:?}", data.meta_track_index);
 
-        smf.tracks.remove(data.meta_track_index.unwrap());
+        // smf.tracks.remove(data.meta_track_index.unwrap());
 
         let handle = Arc::new(window).clone();
         handle
@@ -160,22 +160,19 @@ async fn file_upload(window: Window<Wry>) {
             };
             arangements.push(track_plus);
         }
+        // handle.emit_and_trigger("play_arrangement", ()).unwrap();
+        // Add the tempo to the midi player state
+        let mut tempo = midi_player_state.tempo.lock().unwrap();
+        *tempo = data.tempo;
+        // Add the length in ticks to the midi player state
+        let mut length_in_ticks = midi_player_state.length_in_ticks.lock().unwrap();
+        *length_in_ticks = data.length_in_ticks;
     }
-    // let mut arangements = Vec::new();
-    // for track in smf.tracks.iter() {
-    //     let track_plus = TrackPlus {
-    //         track: track.clone(),
-    //         timing,
-    //     };
-    //     arangements.push(track_plus);
-    // }
-    // let midi_player_state = handle.state::<Arc<Mutex<MidiPlayerState>>>();
-    // let mut midi_player_state = midi_player_state.lock().unwrap();
-    // midi_player_state.arangements = Arc::new(Mutex::new(arangements));
 }
 
 #[tauri::command(async)]
-fn play_arrangement(midi_player_state: tauri::State<'_, MidiPlayerState>, window: Window<Wry>) {
+fn play_arrangement(window: Window<Wry>, midi_player_state: tauri::State<'_, MidiPlayerState>) {
+    println!("Playing arrangement");
     let handle = Arc::new(window).clone();
     let midi_player_state = &midi_player_state;
     let tempo = midi_player_state.tempo.lock().unwrap();
@@ -183,6 +180,10 @@ fn play_arrangement(midi_player_state: tauri::State<'_, MidiPlayerState>, window
     let length_in_ticks = midi_player_state.length_in_ticks.lock().unwrap();
     let full_track_time = midi_player_state.track_time.lock().unwrap();
     let mut full_track_time = *full_track_time;
+
+    println!("Aranagements length: {}", arangements.len());
+    println!("Tempo: {}", tempo);
+    println!("Length in ticks: {}", length_in_ticks);
 
     let mut next_track_times = vec![0; arangements.len()];
     let mut track_iterators = vec![];
@@ -203,8 +204,13 @@ fn play_arrangement(midi_player_state: tauri::State<'_, MidiPlayerState>, window
                 let time_per_tick = (tempo.clone() as f32) / ticks_per_beat.as_int() as f32;
                 time_per_ticks.push(time_per_tick);
                 // Update length in microseconds if new calculated length is longer
+                // println!("length in microseconds: {}", length_in_microseconds);
+                // println!("length in ticks: {}", *length_in_ticks);
                 if length_in_microseconds < (*length_in_ticks as f32 * time_per_tick) {
+                    // println!("Length in ticks: {}", length_in_ticks);
+                    // println!("Time per tick: {}", time_per_tick);
                     length_in_microseconds = *length_in_ticks as f32 * time_per_tick;
+                    // println!("New length in microseconds: {}", length_in_microseconds);
                 }
             }
             midly::Timing::Timecode(fps, _) => {
@@ -217,22 +223,33 @@ fn play_arrangement(midi_player_state: tauri::State<'_, MidiPlayerState>, window
             }
         }
     }
+    println!("Length in microseconds: {}", length_in_microseconds);
+    // Length in minutes
+    println!("Length in minutes: {}", length_in_microseconds / 1000000.0 / 60.0);
+    // print time per ticks vec
+    println!("Time per ticks: {:?}", time_per_ticks);
 
     let now = std::time::Instant::now();
+    // let mut count = 0;
     loop {
+        // count += 1;
+        // println!("Count: {}", count);
         let mut num_finished_tracks = 0;
-        for (i, track_time) in next_track_times.iter_mut().enumerate() {
+        for (i, mut track_time) in next_track_times.iter_mut().enumerate() {
             if *track_time <= full_track_time {
                 let event = track_iterators[i].next();
                 match event {
                     Some(event) => {
                         let delta_time = event.delta.as_int();
                         *track_time += delta_time * time_per_ticks[i] as u32;
+                        // *track_time += 1;
                         mildy_event_handler(*event, handle.clone());
                     }
                     None => {
                         // If .next() returns None, the track is finished
                         num_finished_tracks += 1;
+                        // Set the next track time to the max value so it won't be played again
+                        *track_time = std::u32::MAX;
                     }
                 }
             }
@@ -242,24 +259,29 @@ fn play_arrangement(midi_player_state: tauri::State<'_, MidiPlayerState>, window
             break;
         }
 
-        let progress_bar_value = (full_track_time as f32 / length_in_microseconds) * 100.0;
-        handle.emit(
-            "update_progress_bar",
-            progress_bar_value,
-        )
-        .map_err(|e| {
-            println!("Error sending midi message: {}", e);
-        })
-        .ok();
+        // let progress_bar_value = (full_track_time as f32 / length_in_microseconds) * 100.0;
+        // handle.emit(
+        //     "update_progress_bar",
+        //     progress_bar_value,
+        // )
+        // .map_err(|e| {
+        //     println!("Error sending midi message: {}", e);
+        // })
+        // .ok();
+
+        // print full track time
+        println!("Full track time: {}", full_track_time);
 
         // Wait until the closest track time
         full_track_time = *next_track_times.iter().min().unwrap();
         let wait_time = now + std::time::Duration::from_micros(full_track_time as u64);
         while std::time::Instant::now() < wait_time {}
     }
+    println!("Finished playing");
 }
 
 fn mildy_event_handler(event: midly::TrackEvent, handle: Arc<tauri::Window>) {
+    println!("Event: {:?}", event);
     // Match the event
     match event.kind {
         // If the event is a note on event
@@ -301,7 +323,12 @@ fn main() {
     let synth = Mutex::new(Synth::new(stream_handle));
 
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![open_midi_connection, update_synth, file_upload])
+        .invoke_handler(tauri::generate_handler![
+            open_midi_connection, 
+            update_synth, 
+            file_upload, 
+            play_arrangement
+        ])
         .manage(MidiState::default())
         .manage(SynthState { synth })
         .manage(MidiPlayerState {

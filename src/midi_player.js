@@ -10,6 +10,12 @@ if (window.__TAURI__) {
 	}
   }
 
+  async function play_arrangement() {  
+	if (window.__TAURI__) {
+	  await invoke("play_arrangement");
+	}
+  }
+
   console.log("MIDI player loaded")
 
   export function midi_player() {
@@ -57,6 +63,8 @@ if (window.__TAURI__) {
 			const midi_player_text = document.createElement("p");
 			midi_player_text.innerHTML = event.payload;
 			midi_player_widget.appendChild(midi_player_text);
+
+			play_arrangement();
 
 			console.log(event.payload);
 		})
