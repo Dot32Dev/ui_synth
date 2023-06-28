@@ -5,6 +5,7 @@
 )]
 
 use midir::{MidiInput, MidiInputConnection};
+use midly::Track;
 use rodio::source::Source;
 use rodio::OutputStream;
 
@@ -16,7 +17,8 @@ use oscillator::Oscillator;
 use synth::{Envelope, Synth};
 
 use serde::{Deserialize, Serialize};
-use tauri::http::header;
+use core::time;
+// use tauri::http::header;
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, Window, Wry};
 use tauri::api::dialog;
@@ -30,6 +32,19 @@ struct SynthState {
     synth: Arc<Mutex<Synth>>,
 }
 
+#[derive(Default)]
+struct MidiPlayerState<'a> {
+    arangements: Arc<Mutex<Vec<TrackPlus<'a>>>>,
+    tempo: Mutex<u32>,
+    track_time: Mutex<u32>,
+    length_in_ticks: Mutex<u32>,
+}
+
+struct TrackPlus<'a> {
+    track: Track<'a>,
+    timing: midly::Timing,
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 struct MidiMessage {
     message: Vec<u8>,
@@ -38,6 +53,7 @@ struct MidiMessage {
 struct MidiData {
     tempo: u32,
     length_in_ticks: u32,
+    meta_track_index: Option<usize>,
 }
 
 #[tauri::command]
@@ -210,6 +226,125 @@ fn file_upload(window: Window<Wry>) {
         });
 }
 
+#[tauri::command(async)]
+fn play_arrangement(midi_player_state: tauri::State<'_, MidiPlayerState>, window: Window<Wry>) {
+    let handle = Arc::new(window).clone();
+    let midi_player_state = &midi_player_state;
+    let tempo = midi_player_state.tempo.lock().unwrap();
+    let arangements = midi_player_state.arangements.lock().unwrap();
+    let length_in_ticks = midi_player_state.length_in_ticks.lock().unwrap();
+    let full_track_time = midi_player_state.track_time.lock().unwrap();
+    let mut full_track_time = *full_track_time;
+
+    let mut next_track_times = vec![0; arangements.len()];
+    let mut track_iterators = vec![];
+    for track in arangements.iter() {
+        let track_iterator = track.track.iter();
+        track_iterators.push(track_iterator);
+    }
+    let mut track_timings = vec![];
+    for track in arangements.iter() {
+        let track_timing = track.timing;
+        track_timings.push(track_timing);
+    }
+    let mut time_per_ticks = vec![];
+    let mut length_in_microseconds = 0.0;
+    for track_timing in track_timings.iter() {
+        match track_timing {
+            midly::Timing::Metrical(ticks_per_beat) => {
+                let time_per_tick = (tempo.clone() as f32) / ticks_per_beat.as_int() as f32;
+                time_per_ticks.push(time_per_tick);
+                // Update length in microseconds if new calculated length is longer
+                if length_in_microseconds < (*length_in_ticks as f32 * time_per_tick) {
+                    length_in_microseconds = *length_in_ticks as f32 * time_per_tick;
+                }
+            }
+            midly::Timing::Timecode(fps, _) => {
+                let time_per_tick = 1.0 / fps.as_f32();
+                time_per_ticks.push(time_per_tick);
+                // Update length in microseconds if new calculated length is longer
+                if length_in_microseconds < (*length_in_ticks as f32 * time_per_tick) {
+                    length_in_microseconds = *length_in_ticks as f32 * time_per_tick;
+                }
+            }
+        }
+    }
+
+    let now = std::time::Instant::now();
+    loop {
+        let mut num_finished_tracks = 0;
+        for (i, track_time) in next_track_times.iter_mut().enumerate() {
+            if *track_time <= full_track_time {
+                let event = track_iterators[i].next();
+                match event {
+                    Some(event) => {
+                        let delta_time = event.delta.as_int();
+                        *track_time += delta_time * time_per_ticks[i] as u32;
+                        mildy_event_handler(*event, handle.clone());
+                    }
+                    None => {
+                        num_finished_tracks += 1;
+                    }
+                }
+            }
+        }
+        if num_finished_tracks == track_iterators.len() {
+            println!("Finished playing");
+            break;
+        }
+
+        let progress_bar_value = (full_track_time as f32 / length_in_microseconds) * 100.0;
+        handle.emit(
+            "update_progress_bar",
+            progress_bar_value,
+        )
+        .map_err(|e| {
+            println!("Error sending midi message: {}", e);
+        })
+        .ok();
+
+        // Wait until the closest track time
+        full_track_time = *next_track_times.iter().min().unwrap();
+        let wait_time = now + std::time::Duration::from_micros(full_track_time as u64);
+        while std::time::Instant::now() < wait_time {}
+    }
+}
+
+fn mildy_event_handler(event: midly::TrackEvent, handle: Arc<tauri::Window>) {
+    // Match the event
+    match event.kind {
+        // If the event is a note on event
+        midly::TrackEventKind::Midi { channel: _, message } => {
+            match message {
+                // If the message is a note on message
+                midly::MidiMessage::NoteOn { key, vel } => {
+                    if vel > 0 {
+                        // println!("Note on");
+                        handle.emit_and_trigger("midi_message", MidiMessage { message: vec![144, key.into(), vel.into()] }).map_err(|e| {
+                            println!("Error sending midi message: {}", e);
+                        })
+                        .ok();
+                    } else {
+                        handle.emit_and_trigger("midi_message", MidiMessage { message: vec![128, key.into(), vel.into()] }).map_err(|e| {
+                            println!("Error sending midi message: {}", e);
+                        })
+                        .ok();
+                    }
+                }
+                // If the message is a note off message
+                midly::MidiMessage::NoteOff { key, vel } => {
+                    handle.emit_and_trigger("midi_message", MidiMessage { message: vec![128, key.into(), vel.into()] }).map_err(|e| {
+                        println!("Error sending midi message: {}", e);
+                    })
+                    .ok();
+                }
+                _ => {}
+            }
+        }
+        _ => {}
+    }
+}
+
 fn main() {
     // Get an output stream handle to the default physical sound device
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
@@ -220,6 +355,10 @@ fn main() {
         .invoke_handler(tauri::generate_handler![open_midi_connection, update_synth, file_upload])
         .manage(MidiState::default())
         .manage(SynthState { synth })
+        .manage(MidiPlayerState {
+            tempo: 500000.into(), // 120 bpm
+            ..Default::default()
+        })
         .setup(|app| {
             let handle = app.handle();
             let _id = app.listen_global("midi_message", move |event| {
@@ -255,7 +394,8 @@ fn main() {
 fn get_midi_data(smf: &midly::Smf) -> MidiData {
     let mut tempo = 500000;
     let mut length_in_ticks = 0;
-    for track in smf.tracks.iter() {
+    let mut meta_track_index = None;
+    for (i, track) in smf.tracks.iter().enumerate() {
         let mut length_in_ticks_tmp = 0;
         for event in track.iter() {
             let delta_time = event.delta.as_int();
@@ -263,6 +403,7 @@ fn get_midi_data(smf: &midly::Smf) -> MidiData {
             match event.kind {
                 midly::TrackEventKind::Meta(midly::MetaMessage::Tempo(tempo_event)) => {
                     tempo = tempo_event.as_int();
+                    meta_track_index = Some(i);
                 }
                 midly::TrackEventKind::Meta(midly::MetaMessage::EndOfTrack) => {
                     if length_in_ticks_tmp > length_in_ticks {
@@ -274,5 +415,5 @@ fn get_midi_data(smf: &midly::Smf) -> MidiData {
             }
         }
     };
-    MidiData { tempo, length_in_ticks }
+    MidiData { tempo, length_in_ticks, meta_track_index }
 }
