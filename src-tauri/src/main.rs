@@ -17,7 +17,7 @@ use oscillator::Oscillator;
 use synth::{Envelope, Synth};
 
 use serde::{Deserialize, Serialize};
-use core::time;
+// use core::time;
 // use tauri::http::header;
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, Window, Wry};
@@ -29,12 +29,12 @@ struct MidiState {
 }
 
 struct SynthState {
-    synth: Arc<Mutex<Synth>>,
+    synth: Mutex<Synth>,
 }
 
 #[derive(Default)]
 struct MidiPlayerState<'a> {
-    arangements: Arc<Mutex<Vec<TrackPlus<'a>>>>,
+    arangements: Mutex<Vec<TrackPlus<'a>>>,
     tempo: Mutex<u32>,
     track_time: Mutex<u32>,
     length_in_ticks: Mutex<u32>,
@@ -114,116 +114,64 @@ fn update_synth(synth_state: tauri::State<'_, SynthState>) {
     }
 }
 
-#[tauri::command(async)]
-fn file_upload(window: Window<Wry>) {
-    dialog::FileDialogBuilder::default()
+static mut file_data: Vec<u8> = Vec::new();
+
+#[tauri::command]
+async fn file_upload(window: Window<Wry>) {
+    let path_buf = dialog::blocking::FileDialogBuilder::default()
         .add_filter("Midi", &["midi", "mid"])
-        .pick_file(|path_buf| match path_buf {
-        Some(p) => {
-            let data = std::fs::read(p.clone()).unwrap();
-            let mut smf = midly::Smf::parse(&data).unwrap();
-
-            let track_count = smf.tracks.len();
-            println!("Track count: {}", track_count);
-            let header = smf.header;
-            let timing = header.timing;
-            println!("Timing: {:?}", timing);
-            // let track_tempo = get_tempo(&smf);
-            let data = get_midi_data(&smf);
-            println!("Length in ticks: {}", data.length_in_ticks);
-            let time_per_tick;
-            match timing {
-                midly::Timing::Metrical(ticks_per_beat) => {
-                    time_per_tick = ((data.tempo as f32) / ticks_per_beat.as_int() as f32);
-                }
-                midly::Timing::Timecode(fps, _) => {
-                    time_per_tick = 1.0 / fps.as_f32();
-                }
-            }
-            println!("Time per tick: {}", time_per_tick);
-            // Calculate length in microseconds
-            let length_in_microseconds = data.length_in_ticks as f32 * time_per_tick;
-            println!("Length in microseconds: {}", length_in_microseconds);
-            // Print length in seconds
-            println!("Length in seconds: {}", length_in_microseconds / 1000000.0);
-            // Print length in minutes
-            println!("Length in minutes: {}", length_in_microseconds / 60000000.0);
-
-            let first_track = smf.tracks.remove(3);
-
-            let handle = Arc::new(window).clone();
-            handle
-                .emit(
-                    "midi_file_data",
-                    p.to_str().unwrap().to_string(),
-                )
-                .map_err(|e| {
-                    println!("Error sending midi message: {}", e);
-                })
-                .ok();
-
-            // Get std instant of current time
-            let now = std::time::Instant::now();
-            let mut track_time = 0;
-            // Loop over the first track
-            for event in first_track.iter() {
-                println!("Event: {:?}", event);
-                // Get the delta time of the event
-                let delta_time = event.delta.as_int();
-                track_time += delta_time*time_per_tick as u32;
-                // Get the time to wait before playing the event
-                let wait_time = now + std::time::Duration::from_micros(track_time as u64);
-                // Wait until the time to play the event
-                while std::time::Instant::now() < wait_time {}
-
-                let progress_bar_value = (track_time as f32 / length_in_microseconds) * 100.0;
-                // Emit update_progress_bar
-                handle
-                    .emit(
-                        "update_progress_bar",
-                        progress_bar_value,
-                    )
-                    .map_err(|e| {
-                        println!("Error sending midi message: {}", e);
-                    })
-                    .ok();
-
-                // Match the event
-                match event.kind {
-                    // If the event is a note on event
-                    midly::TrackEventKind::Midi { channel: _, message } => {
-                        match message {
-                            // If the message is a note on message
-                            midly::MidiMessage::NoteOn { key, vel } => {
-                                if vel > 0 {
-                                    // println!("Note on");
-                                    handle.emit_and_trigger("midi_message", MidiMessage { message: vec![144, key.into(), vel.into()] }).map_err(|e| {
-                                        println!("Error sending midi message: {}", e);
-                                    })
-                                    .ok();
-                                } else {
-                                    handle.emit_and_trigger("midi_message", MidiMessage { message: vec![128, key.into(), vel.into()] }).map_err(|e| {
-                                        println!("Error sending midi message: {}", e);
-                                    })
-                                    .ok();
-                                }
-                            }
-                            // If the message is a note off message
-                            midly::MidiMessage::NoteOff { key, vel } => {
-                                handle.emit_and_trigger("midi_message", MidiMessage { message: vec![128, key.into(), vel.into()] }).map_err(|e| {
-                                    println!("Error sending midi message: {}", e);
-                                })
-                                .ok();
-                            }
-                            _ => {}
-                        }
-                    }
-                    _ => {}
-                }
-            }
+        .pick_file();
+    unsafe {
+        if let Some(p) = path_buf {
+            file_data = std::fs::read(p).unwrap();
         }
-        _ => {}
-        });
+        let mut smf = midly::Smf::parse(&file_data).unwrap();
+
+        let track_count = smf.tracks.len();
+        println!("Track count: {}", track_count);
+        let header = smf.header;
+        let timing = header.timing;
+        // let track_tempo = get_tempo(&smf);
+        let data = get_midi_data(&smf);
+        println!("Length in ticks: {}", data.length_in_ticks);
+        println!("Tempo: {}", data.tempo);
+        println!("Meta track index: {:?}", data.meta_track_index);
+
+        smf.tracks.remove(data.meta_track_index.unwrap());
+
+        let handle = Arc::new(window).clone();
+        handle
+            .emit("midi_file_data", ()) //p.to_str().unwrap().to_string())
+            .map_err(|e| {
+                println!("Error sending midi message: {}", e);
+            })
+            .ok();
+
+        // Use the handle to get the midi player state
+        let midi_player_state = handle.state::<MidiPlayerState>();
+
+        // Add the data to the midi player state
+        let mut arangements = midi_player_state.arangements.lock().unwrap();
+        arangements.clear();
+        for track in smf.tracks {
+            let track_plus = TrackPlus {
+                track: track.clone(),
+                timing: timing,
+            };
+            arangements.push(track_plus);
+        }
+    }
+    // let mut arangements = Vec::new();
+    // for track in smf.tracks.iter() {
+    //     let track_plus = TrackPlus {
+    //         track: track.clone(),
+    //         timing,
+    //     };
+    //     arangements.push(track_plus);
+    // }
+    // let midi_player_state = handle.state::<Arc<Mutex<MidiPlayerState>>>();
+    // let mut midi_player_state = midi_player_state.lock().unwrap();
+    // midi_player_state.arangements = Arc::new(Mutex::new(arangements));
 }
 
 #[tauri::command(async)]
@@ -283,6 +231,7 @@ fn play_arrangement(midi_player_state: tauri::State<'_, MidiPlayerState>, window
                         mildy_event_handler(*event, handle.clone());
                     }
                     None => {
+                        // If .next() returns None, the track is finished
                         num_finished_tracks += 1;
                     }
                 }
@@ -349,7 +298,7 @@ fn main() {
     // Get an output stream handle to the default physical sound device
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
 
-    let synth = Arc::new(Mutex::new(Synth::new(stream_handle)));
+    let synth = Mutex::new(Synth::new(stream_handle));
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![open_midi_connection, update_synth, file_upload])
