@@ -84,14 +84,26 @@ h2 {
     width: 2em;
     height: 10em;
     margin: 1px;
+
+    /* Transition height */
+    transition: height 0.1s ease-in-out;
 }
 
 .pressed.white.key {
   background-color: hsl(0, 0%, 76%);
+  height: 9.8em;
 }
 
 .pressed.black.key {
-  background-color: hsl(0, 0%, 29%);
+    background-color: hsl(0, 0%, 29%);
+    height: 7.8em;
+}
+
+.pressed {
+    /* dissable transition for snappyness */
+    transition: none;
+    /* width: 1.8em; */
+    /* margin: 0.1em; */
 }
 
 .key-parent {

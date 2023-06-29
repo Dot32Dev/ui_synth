@@ -60,6 +60,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // Spawn keys inside the piano
   for (let i = 36; i < 85; i++) {
+  // for (let i = 24; i < 97; i++) {
     // Create a key parent div
     const key_parent = document.createElement("div");
     key_parent.classList.add("key-parent");

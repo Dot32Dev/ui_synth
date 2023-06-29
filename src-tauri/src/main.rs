@@ -259,15 +259,15 @@ fn play_arrangement(window: Window<Wry>, midi_player_state: tauri::State<'_, Mid
             break;
         }
 
-        // let progress_bar_value = (full_track_time as f32 / length_in_microseconds) * 100.0;
-        // handle.emit(
-        //     "update_progress_bar",
-        //     progress_bar_value,
-        // )
-        // .map_err(|e| {
-        //     println!("Error sending midi message: {}", e);
-        // })
-        // .ok();
+        let progress_bar_value = (full_track_time as f32 / length_in_microseconds) * 100.0;
+        handle.emit(
+            "update_progress_bar",
+            progress_bar_value,
+        )
+        .map_err(|e| {
+            println!("Error sending midi message: {}", e);
+        })
+        .ok();
 
         // print full track time
         println!("Full track time: {}", full_track_time);
