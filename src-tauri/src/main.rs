@@ -56,6 +56,14 @@ struct MidiData {
     meta_track_index: Option<usize>,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+struct FrontEndNote {
+    note: u8,
+    velocity: u8,
+    start_time: f32,
+    end_time: f32,
+}
+
 #[tauri::command]
 fn open_midi_connection(midi_state: tauri::State<'_, MidiState>, window: Window<Wry>) {
     let handle = Arc::new(window).clone();
@@ -140,15 +148,15 @@ async fn file_upload(window: Window<Wry>) {
         // smf.tracks.remove(data.meta_track_index.unwrap());
 
         let handle = Arc::new(window).clone();
-        handle
-            .emit("midi_file_data", ()) //p.to_str().unwrap().to_string())
-            .map_err(|e| {
-                println!("Error sending midi message: {}", e);
-            })
-            .ok();
 
         // Use the handle to get the midi player state
         let midi_player_state = handle.state::<MidiPlayerState>();
+        handle
+        .emit("midi_file_data", ()) //p.to_str().unwrap().to_string())
+        .map_err(|e| {
+            println!("Error sending midi message: {}", e);
+        })
+        .ok();
 
         // Add the data to the midi player state
         let mut arangements = midi_player_state.arangements.lock().unwrap();
@@ -184,6 +192,70 @@ fn play_arrangement(window: Window<Wry>, midi_player_state: tauri::State<'_, Mid
     println!("Aranagements length: {}", arangements.len());
     println!("Tempo: {}", tempo);
     println!("Length in ticks: {}", length_in_ticks);
+
+    // BEGIN SENDING DATA TO FRONT END
+    // let mut front_end_tracks = Vec::new();
+    // for track in smf.tracks.clone() {
+    //     let mut front_end_track = Vec::new();
+    //     let mut current_time = 0;
+    //     let mut current_note = 0;
+    //     let mut current_velocity = 0;
+    //     let mut note_on = false;
+    //     let mut note_start_time = 0;
+    //     for event in track {
+    //         match event.kind {
+    //             midly::TrackEventKind::Midi { channel, message } => {
+    //                 match message {
+    //                     midly::MidiMessage::NoteOn { key, vel } => {
+    //                         if vel > 0 {
+    //                             note_on = true;
+    //                             current_note = key.into();
+    //                             current_velocity = vel.into();
+    //                             note_start_time = current_time;
+    //                         } else {
+    //                             note_on = false;
+    //                             let front_end_note = FrontEndNote {
+    //                                 note: current_note,
+    //                                 velocity: current_velocity,
+    //                                 start_time: note_start_time as f32,
+    //                                 end_time: current_time as f32,
+    //                             };
+    //                             front_end_track.push(front_end_note);
+    //                         }
+    //                     }
+    //                     midly::MidiMessage::NoteOff { key, vel } => {
+    //                         note_on = false;
+    //                         let front_end_note = FrontEndNote {
+    //                             note: current_note,
+    //                             velocity: current_velocity,
+    //                             start_time: note_start_time as f32,
+    //                             end_time: current_time as f32,
+    //                         };
+    //                         front_end_track.push(front_end_note);
+    //                     }
+    //                     _ => {}
+    //                 }
+    //             }
+    //             _ => {}
+    //         }
+    //         current_time += event.delta.as_int();
+    //     }
+    //     // Add the elements of the front-end-track to the front-end-tracks
+    //     for front_end_note in front_end_track {
+    //         front_end_tracks.push(front_end_note);
+    //     }
+        
+    // }
+    // // Sort the front-end-tracks by start time
+    // front_end_tracks.sort_by(|a, b| a.start_time.partial_cmp(&b.start_time).unwrap());
+
+    // handle
+    //     .emit("midi_file_data", ()) //p.to_str().unwrap().to_string())
+    //     .map_err(|e| {
+    //         println!("Error sending midi message: {}", e);
+    //     })
+    //     .ok();
+    // END SENDING DATA TO FRONT END
 
     let mut next_track_times = vec![0; arangements.len()];
     let mut track_iterators = vec![];

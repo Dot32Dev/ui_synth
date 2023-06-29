@@ -85,14 +85,14 @@ window.addEventListener("DOMContentLoaded", () => {
 
     // Add mousedown event listener to the key
     key.addEventListener("mousedown", () => {
-      console.log("MIDI message sent!")
+      // console.log("MIDI message sent!")
       emit('midi_message', {
         message: [144, i, 100],
       })
     });
     // Add mouseup event listener to the key
     key.addEventListener("mouseup", () => {
-      console.log("MIDI message sent!")
+      // console.log("MIDI message sent!")
       emit('midi_message', {
         message: [128, i, 100],
       })
@@ -102,13 +102,13 @@ window.addEventListener("DOMContentLoaded", () => {
     piano.appendChild(key_parent);
   }
 
-  console.log("Hello from JS!")
+  // console.log("Hello from JS!")
   // listen for event "midi-message"
   if (window.__TAURI__) {
     const unlisten = listen("midi_message", (event) => {
-      console.log(event);
+      // console.log(event);
       // console.log("MIDI message received!")
-      console.log(event.payload.message[1]);
+      // console.log(event.payload.message[1]);
       const key = document.querySelector(`.k${event.payload.message[1]}`);
       if (event.payload.message[0] == 144) {
         key.classList.add("pressed");

@@ -63,7 +63,8 @@ if (window.__TAURI__) {
 			const midi_player_widget = document.querySelector(".midi_player");
 			// Create a new p tag inside of the midi_player widget
 			const midi_player_text = document.createElement("p");
-			midi_player_text.innerHTML = event.payload;
+			// midi_player_text.innerHTML = event.payload;
+			console.log(event.payload)
 			midi_player_widget.appendChild(midi_player_text);
 
 			// Create a new svg inside the midi_player widget
@@ -75,12 +76,17 @@ if (window.__TAURI__) {
 				</svg>
 			`;
 			build_svg_piano_roll(svg_container);
+
+			// Build a carret div inside of the svg_container
+			const carret = document.createElement("div");
+			carret.classList.add("carret");
+			svg_container.appendChild(carret);
 			midi_player_widget.appendChild(svg_container);
 
 
 			play_arrangement();
 
-			console.log(event.payload);
+			// console.log(event.payload);
 		})
 
 		listen("update_progress_bar", (event) => {
