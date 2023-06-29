@@ -175,6 +175,6 @@ svg {
 }
 
 .svg-container {
-    overflow-y: scroll;
+    /* overflow-y: scroll; */
     width: 100%;
 }
