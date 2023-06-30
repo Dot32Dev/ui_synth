@@ -82,10 +82,6 @@ if (window.__TAURI__) {
 			carret.classList.add("carret");
 			svg_container.appendChild(carret);
 			midi_player_widget.appendChild(svg_container);
-
-
-			play_arrangement();
-
 			// console.log(event.payload);
 		})
 
@@ -95,6 +91,10 @@ if (window.__TAURI__) {
 			// Update the progress bar
 			progress_bar.setAttribute("value", event.payload);
 			progress_bar.innerHTML = event.payload + "%";
+		})
+
+		listen("call_the_rust_function", () => {
+			play_arrangement();
 		})
 	  }
   }

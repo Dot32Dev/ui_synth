@@ -148,15 +148,16 @@ async fn file_upload(window: Window<Wry>) {
         // smf.tracks.remove(data.meta_track_index.unwrap());
 
         let handle = Arc::new(window).clone();
-
-        // Use the handle to get the midi player state
-        let midi_player_state = handle.state::<MidiPlayerState>();
         handle
-        .emit("midi_file_data", ()) //p.to_str().unwrap().to_string())
+        .emit("call_the_rust_function", ()) //p.to_str().unwrap().to_string())
         .map_err(|e| {
             println!("Error sending midi message: {}", e);
         })
         .ok();
+        // handle.trigger("play_arrangement", None);
+
+        // Use the handle to get the midi player state
+        let midi_player_state = handle.state::<MidiPlayerState>();
 
         // Add the data to the midi player state
         let mut arangements = midi_player_state.arangements.lock().unwrap();
@@ -250,7 +251,7 @@ fn play_arrangement(window: Window<Wry>, midi_player_state: tauri::State<'_, Mid
     // front_end_tracks.sort_by(|a, b| a.start_time.partial_cmp(&b.start_time).unwrap());
 
     // handle
-    //     .emit("midi_file_data", ()) //p.to_str().unwrap().to_string())
+    //     .emit("midi_file_data", [*length_in_ticks, ]) //p.to_str().unwrap().to_string())
     //     .map_err(|e| {
     //         println!("Error sending midi message: {}", e);
     //     })
