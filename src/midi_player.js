@@ -74,12 +74,12 @@ if (window.__TAURI__) {
 			// Create a new svg inside the midi_player widget
 			const svg_container = document.createElement("div");
 			svg_container.classList.add("svg-container");
-			svg_container.innerHTML = `
-				<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
-				<rect width="100%" height="100%" fill="#000" />
-				</svg>
-			`;
-			build_svg_piano_roll(svg_container);
+			// svg_container.innerHTML = `
+			// 	<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+			// 	<rect width="100%" height="100%" fill="#000" />
+			// 	</svg>
+			// `;
+			// build_svg_piano_roll(svg_container);
 
 			// Build a carret div inside of the svg_container
 			const carret = document.createElement("div");
@@ -97,7 +97,7 @@ if (window.__TAURI__) {
 				const milliseconds_per_line = line_microseconds / 1000;
 				// Calculate how far the carret should be moved
 				const carret_move = difference / milliseconds_per_line * 100;
-				console.log(carret_move)
+				// console.log(carret_move)
 				// Move the carret
 				carret.style.left = carret_move + "%";
 			}, 40);
@@ -117,12 +117,21 @@ if (window.__TAURI__) {
 
 		listen("update_current_line", (event) => {
 			last_line_time = Date.now();
-			console.log(Date.now());
+			// console.log(Date.now());
+
+			// Get the svg container
+			const svg_container = document.querySelector(".svg-container");
+			svg_container.innerHTML = `
+				<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+				<rect width="100%" height="100%" fill="#000" />
+				</svg>
+			`;
+			build_svg_piano_roll(svg_container, event.payload);
 		})
 	  }
   }
 
-  function build_svg_piano_roll(svg_container) {
+  function build_svg_piano_roll(svg_container, notes) {
 	// Get the svg element
 	const svg = svg_container.querySelector("svg");
 	// variable for the namespace 
@@ -166,6 +175,33 @@ if (window.__TAURI__) {
 				// Move y position of rect down by 0.5
 				rect.setAttributeNS(null, "y", i * rect_height + 0.5);
 			}
+
+			// Add the rect to the svg element
+			svg.appendChild(rect);
+		}
+	}
+
+	// Create a new rect for each note
+	for (let i = 0; i < notes.length; i++) {
+		// console.log(notes[i]);
+		// Create a new rect
+		// console.log(line_microseconds)
+		// console.log(notes[i].start_time)
+		if (!isNaN(notes[i].start_time / line_microseconds)) {
+			const rect = document.createElementNS(svgns, "rect");
+
+			// Calculate Y of a note if notes start at 36 and end at 84
+			const note_y = notes[i].note - 36;
+
+			// Set the rect attributes
+			rect.setAttributeNS(null, "x", notes[i].start_time / line_microseconds * grid_columns * rect_width);
+			rect.setAttributeNS(null, "y", note_y * rect_height);
+			rect.setAttributeNS(null, "width", (notes[i].end_time - notes[i].start_time)/ line_microseconds * rect_width);
+			rect.setAttributeNS(null, "height", rect_height);
+			rect.setAttributeNS(null, "fill", "yellow");
+			rect.setAttributeNS(null, "stroke", "black");
+			rect.setAttributeNS(null, "stroke-width", "1");
+			console.log("hi")
 
 			// Add the rect to the svg element
 			svg.appendChild(rect);

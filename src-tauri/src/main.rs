@@ -60,8 +60,8 @@ struct MidiData {
 struct FrontEndNote {
     note: u8,
     velocity: u8,
-    start_time: f32,
-    end_time: f32,
+    start_time: u32,
+    end_time: u32,
 }
 
 enum SimpleNote {
@@ -310,6 +310,9 @@ fn play_arrangement(window: Window<Wry>, midi_player_state: tauri::State<'_, Mid
     println!("Time per ticks: {:?}", time_per_ticks);
 
     let mut current_line = 0;
+    let mut active_notes = Vec::new();
+    let mut last_line_time = 0;
+    let mut front_end_notes = Vec::new();
 
     let now = std::time::Instant::now();
     loop {
@@ -327,12 +330,29 @@ fn play_arrangement(window: Window<Wry>, midi_player_state: tauri::State<'_, Mid
                                     println!("Error sending midi message: {}", e);
                                 })
                                 .ok();
+
+                                let time_since_last_line = full_track_time - last_line_time;
+                                active_notes.push([key as u32, vel as u32, time_since_last_line]);
                             },
                             Some(SimpleNote::Off(key)) => {
                                 handle.emit_and_trigger("midi_message", MidiMessage { message: vec![128, key, 0] }).map_err(|e| {
                                     println!("Error sending midi message: {}", e);
                                 })
                                 .ok();
+
+                                // Iterate over active notes and remove the one with the same key
+                                for (i, note) in active_notes.iter().enumerate() {
+                                    if note[0] == key as u32 {
+                                        let note = active_notes.remove(i);
+                                        front_end_notes.push(FrontEndNote {
+                                            start_time: note[2],
+                                            end_time: full_track_time,
+                                            note: note[0] as u8,
+                                            velocity: note[1] as u8,
+                                        });
+                                        break;
+                                    }
+                                }
                             },
                             None => {}
                         }
@@ -354,13 +374,15 @@ fn play_arrangement(window: Window<Wry>, midi_player_state: tauri::State<'_, Mid
         if current_line*microseconds_per_line <= full_track_time {
             handle.emit(
                 "update_current_line",
-                current_line,
+                front_end_notes.clone(),
             )
             .map_err(|e| {
                 println!("Error sending midi message: {}", e);
             })
             .ok();
             current_line += 1;
+            last_line_time = full_track_time;
+            front_end_notes.clear();
             println!("Current line: {}", current_line)
         }
 
