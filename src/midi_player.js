@@ -100,7 +100,7 @@ if (window.__TAURI__) {
 				console.log(carret_move)
 				// Move the carret
 				carret.style.left = carret_move + "%";
-			}, 100);
+			}, 40);
 		})
 
 		listen("update_progress_bar", (event) => {

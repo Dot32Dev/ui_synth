@@ -64,6 +64,11 @@ struct FrontEndNote {
     end_time: f32,
 }
 
+enum SimpleNote {
+    On(u8, u8),
+    Off(u8),
+}
+
 #[tauri::command]
 fn open_midi_connection(midi_state: tauri::State<'_, MidiState>, window: Window<Wry>) {
     let handle = Arc::new(window).clone();
@@ -316,7 +321,21 @@ fn play_arrangement(window: Window<Wry>, midi_player_state: tauri::State<'_, Mid
                     Some(event) => {
                         let delta_time = event.delta.as_int();
                         *track_time += delta_time * time_per_ticks[i] as u32;
-                        mildy_event_handler(*event, handle.clone());
+                        match mildy_event_handler(*event, handle.clone()) {
+                            Some(SimpleNote::On(key, vel)) => {
+                                handle.emit_and_trigger("midi_message", MidiMessage { message: vec![144, key, vel] }).map_err(|e| {
+                                    println!("Error sending midi message: {}", e);
+                                })
+                                .ok();
+                            },
+                            Some(SimpleNote::Off(key)) => {
+                                handle.emit_and_trigger("midi_message", MidiMessage { message: vec![128, key, 0] }).map_err(|e| {
+                                    println!("Error sending midi message: {}", e);
+                                })
+                                .ok();
+                            },
+                            None => {}
+                        }
                     }
                     None => {
                         // If .next() returns None, the track is finished
@@ -366,7 +385,7 @@ fn play_arrangement(window: Window<Wry>, midi_player_state: tauri::State<'_, Mid
     println!("Finished playing");
 }
 
-fn mildy_event_handler(event: midly::TrackEvent, handle: Arc<tauri::Window>) {
+fn mildy_event_handler(event: midly::TrackEvent, handle: Arc<tauri::Window>) -> Option<SimpleNote> {
     // println!("Event: {:?}", event);
     // Match the event
     match event.kind {
@@ -376,29 +395,32 @@ fn mildy_event_handler(event: midly::TrackEvent, handle: Arc<tauri::Window>) {
                 // If the message is a note on message
                 midly::MidiMessage::NoteOn { key, vel } => {
                     if vel > 0 {
-                        // println!("Note on");
-                        handle.emit_and_trigger("midi_message", MidiMessage { message: vec![144, key.into(), vel.into()] }).map_err(|e| {
-                            println!("Error sending midi message: {}", e);
-                        })
-                        .ok();
+                        // // println!("Note on");
+                        // handle.emit_and_trigger("midi_message", MidiMessage { message: vec![144, key.into(), vel.into()] }).map_err(|e| {
+                        //     println!("Error sending midi message: {}", e);
+                        // })
+                        // .ok();
+                        return Some(SimpleNote::On(key.into(), vel.into()));
                     } else {
-                        handle.emit_and_trigger("midi_message", MidiMessage { message: vec![128, key.into(), vel.into()] }).map_err(|e| {
-                            println!("Error sending midi message: {}", e);
-                        })
-                        .ok();
+                        // handle.emit_and_trigger("midi_message", MidiMessage { message: vec![128, key.into(), vel.into()] }).map_err(|e| {
+                        //     println!("Error sending midi message: {}", e);
+                        // })
+                        // .ok();
+                        return Some(SimpleNote::Off(key.into()));
                     }
                 }
                 // If the message is a note off message
                 midly::MidiMessage::NoteOff { key, vel } => {
-                    handle.emit_and_trigger("midi_message", MidiMessage { message: vec![128, key.into(), vel.into()] }).map_err(|e| {
-                        println!("Error sending midi message: {}", e);
-                    })
-                    .ok();
+                    // handle.emit_and_trigger("midi_message", MidiMessage { message: vec![128, key.into(), vel.into()] }).map_err(|e| {
+                    //     println!("Error sending midi message: {}", e);
+                    // })
+                    // .ok();
+                    return Some(SimpleNote::Off(key.into()));
                 }
-                _ => {}
+                _ => {None}
             }
         }
-        _ => {}
+        _ => {None}
     }
 }
 
