@@ -41,6 +41,7 @@ body {
     left: 0;
     right: 0;
     background-color: hsl(354, 80%, 46%);
+    z-index: 1;
 }
 
 /* .black::after {
