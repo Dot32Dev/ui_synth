@@ -75,12 +75,12 @@ fn open_midi_connection(midi_state: tauri::State<'_, MidiState>, window: Window<
             match port {
                 Some(port) => {
                     // Print the name of the port
-                    println!("Port: {}", midi_in.port_name(port).unwrap());
+                    // println!("Port: {}", midi_in.port_name(port).unwrap());
                     let midi_in_conn = midi_in.connect(
                         port,
                         "midir",
                         move |_, message, _| {
-                            println!("Message: {:?}", message);
+                            // println!("Message: {:?}", message);
                             handle
                                 .emit_and_trigger(
                                     "midi_message",
@@ -194,6 +194,8 @@ fn play_arrangement(window: Window<Wry>, midi_player_state: tauri::State<'_, Mid
     println!("Tempo: {}", tempo);
     println!("Length in ticks: {}", length_in_ticks);
 
+    let microseconds_per_line = *tempo * 4 * 4;
+
     // BEGIN SENDING DATA TO FRONT END
     // let mut front_end_tracks = Vec::new();
     // for track in smf.tracks.clone() {
@@ -250,12 +252,12 @@ fn play_arrangement(window: Window<Wry>, midi_player_state: tauri::State<'_, Mid
     // // Sort the front-end-tracks by start time
     // front_end_tracks.sort_by(|a, b| a.start_time.partial_cmp(&b.start_time).unwrap());
 
-    // handle
-    //     .emit("midi_file_data", [*length_in_ticks, ]) //p.to_str().unwrap().to_string())
-    //     .map_err(|e| {
-    //         println!("Error sending midi message: {}", e);
-    //     })
-    //     .ok();
+    handle
+        .emit("midi_file_data", microseconds_per_line) //p.to_str().unwrap().to_string())
+        .map_err(|e| {
+            println!("Error sending midi message: {}", e);
+        })
+        .ok();
     // END SENDING DATA TO FRONT END
 
     let mut next_track_times = vec![0; arangements.len()];
@@ -302,20 +304,18 @@ fn play_arrangement(window: Window<Wry>, midi_player_state: tauri::State<'_, Mid
     // print time per ticks vec
     println!("Time per ticks: {:?}", time_per_ticks);
 
+    let mut current_line = 0;
+
     let now = std::time::Instant::now();
-    // let mut count = 0;
     loop {
-        // count += 1;
-        // println!("Count: {}", count);
         let mut num_finished_tracks = 0;
-        for (i, mut track_time) in next_track_times.iter_mut().enumerate() {
+        for (i, track_time) in next_track_times.iter_mut().enumerate() {
             if *track_time <= full_track_time {
                 let event = track_iterators[i].next();
                 match event {
                     Some(event) => {
                         let delta_time = event.delta.as_int();
                         *track_time += delta_time * time_per_ticks[i] as u32;
-                        // *track_time += 1;
                         mildy_event_handler(*event, handle.clone());
                     }
                     None => {
@@ -331,6 +331,19 @@ fn play_arrangement(window: Window<Wry>, midi_player_state: tauri::State<'_, Mid
             println!("Finished playing");
             break;
         }
+        
+        if current_line*microseconds_per_line <= full_track_time {
+            handle.emit(
+                "update_current_line",
+                current_line,
+            )
+            .map_err(|e| {
+                println!("Error sending midi message: {}", e);
+            })
+            .ok();
+            current_line += 1;
+            println!("Current line: {}", current_line)
+        }
 
         let progress_bar_value = (full_track_time as f32 / length_in_microseconds) * 100.0;
         handle.emit(
@@ -343,10 +356,10 @@ fn play_arrangement(window: Window<Wry>, midi_player_state: tauri::State<'_, Mid
         .ok();
 
         // print full track time
-        println!("Full track time: {}", full_track_time);
+        // println!("Full track time: {}", full_track_time);
 
         // Wait until the closest track time
-        full_track_time = *next_track_times.iter().min().unwrap();
+        full_track_time = std::cmp::min(*next_track_times.iter().min().unwrap(), current_line*microseconds_per_line);
         let wait_time = now + std::time::Duration::from_micros(full_track_time as u64);
         while std::time::Instant::now() < wait_time {}
     }
@@ -354,7 +367,7 @@ fn play_arrangement(window: Window<Wry>, midi_player_state: tauri::State<'_, Mid
 }
 
 fn mildy_event_handler(event: midly::TrackEvent, handle: Arc<tauri::Window>) {
-    println!("Event: {:?}", event);
+    // println!("Event: {:?}", event);
     // Match the event
     match event.kind {
         // If the event is a note on event

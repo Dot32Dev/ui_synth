@@ -15,6 +15,9 @@ if (window.__TAURI__) {
 	  await invoke("play_arrangement");
 	}
   }
+  
+  let line_microseconds = 0;
+  let last_line_time = Date.now();
 
   console.log("MIDI player loaded")
 
@@ -63,8 +66,9 @@ if (window.__TAURI__) {
 			const midi_player_widget = document.querySelector(".midi_player");
 			// Create a new p tag inside of the midi_player widget
 			const midi_player_text = document.createElement("p");
-			// midi_player_text.innerHTML = event.payload;
+			midi_player_text.innerHTML = event.payload;
 			console.log(event.payload)
+			line_microseconds = event.payload;
 			midi_player_widget.appendChild(midi_player_text);
 
 			// Create a new svg inside the midi_player widget
@@ -83,6 +87,20 @@ if (window.__TAURI__) {
 			svg_container.appendChild(carret);
 			midi_player_widget.appendChild(svg_container);
 			// console.log(event.payload);
+
+			setInterval(function () {
+				// Get difference from now to last line time
+				const difference = Date.now() - last_line_time;
+				// Log difference as seconds
+				// console.log(difference / 1000);
+				// Calculate microseconds per line to milliseconds per line
+				const milliseconds_per_line = line_microseconds / 1000;
+				// Calculate how far the carret should be moved
+				const carret_move = difference / milliseconds_per_line * 100;
+				console.log(carret_move)
+				// Move the carret
+				carret.style.left = carret_move + "%";
+			}, 100);
 		})
 
 		listen("update_progress_bar", (event) => {
@@ -95,6 +113,11 @@ if (window.__TAURI__) {
 
 		listen("call_the_rust_function", () => {
 			play_arrangement();
+		})
+
+		listen("update_current_line", (event) => {
+			last_line_time = Date.now();
+			console.log(Date.now());
 		})
 	  }
   }
