@@ -89,6 +89,7 @@ if (window.__TAURI__) {
 			// console.log(event.payload);
 
 			setInterval(function () {
+				let carret = document.querySelector(".carret");
 				// Get difference from now to last line time
 				const difference = Date.now() - last_line_time;
 				// Log difference as seconds
