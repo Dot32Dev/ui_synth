@@ -74,11 +74,11 @@ if (window.__TAURI__) {
 			// Create a new svg inside the midi_player widget
 			const svg_container = document.createElement("div");
 			svg_container.classList.add("svg-container");
-			// svg_container.innerHTML = `
-			// 	<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
-			// 	<rect width="100%" height="100%" fill="#000" />
-			// 	</svg>
-			// `;
+			svg_container.innerHTML = `
+				<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+				<rect width="100%" height="100%" fill="#000" />
+				</svg>
+			`;
 			// build_svg_piano_roll(svg_container);
 
 			// Build a carret div inside of the svg_container
@@ -121,7 +121,15 @@ if (window.__TAURI__) {
 
 			// Get the svg container
 			const svg_container = document.querySelector(".svg-container");
-			svg_container.innerHTML = `
+			// svg_container.innerHTML = `
+			// 	<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+			// 	<rect width="100%" height="100%" fill="#000" />
+			// 	</svg>
+			// `;
+			// Delete the svg from svg container
+			svg_container.removeChild(svg_container.querySelector("svg"));
+			// Build a new svg
+			svg_container.innerHTML += `
 				<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
 				<rect width="100%" height="100%" fill="#000" />
 				</svg>
@@ -191,7 +199,7 @@ if (window.__TAURI__) {
 			const rect = document.createElementNS(svgns, "rect");
 
 			// Calculate Y of a note if notes start at 36 and end at 84
-			const note_y = notes[i].note - 36;
+			const note_y = 49 - (notes[i].note - 36);
 
 			// Set the rect attributes
 			rect.setAttributeNS(null, "x", notes[i].start_time / line_microseconds * grid_columns * rect_width);
